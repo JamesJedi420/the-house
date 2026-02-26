@@ -129,3 +129,13 @@ No build step is required.
 Use DevTools Console for errors and state inspection.
 
 Prefer a local server while editing for faster refresh and cleaner debugging.
+
+## Rule Introduction Map (v1)
+
+| Rule ID | First learnable beat | Trigger (player mistake) | Result | Hint text |
+| --- | --- | --- | --- | --- |
+| R3 | 4.1 | Dismiss town warning | CUT -> 1.1 | Rule learned: Do not dismiss outside warnings. |
+| R5 | 4.2 | Treat radio word as message | CUT -> 1.1 | Rule learned: When the radio gives a clear word, treat it as a constraint. |
+| R7 | 4.5 | Skip log + repeat-test | CUT -> 1.1 | Rule learned: Log and repeat-test before you escalate. |
+| R2 | 4.4 | Force a resisting door | CUT -> 1.1 | Rule learned: If a door resists, stop and change method. Do not force it. |
+| R1 | 4.3 | Go alone / split up | CUT -> 1.1 | Rule learned: Do not go alone. |

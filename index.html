@@ -1,18 +1,1262 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The House - HTML Game</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fixing Up a House — Beat 1 Prototype</title>
+  <style>
+    :root{--bg:#0b0c10;--panel:#12141b;--ink:#e8e8ea;--muted:#b4b7c2;--accent:#7aa2ff;--line:#222635;--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;--sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.35}
+    .wrap{max-width:1100px;margin:0 auto;padding:18px;display:grid;gap:14px;grid-template-columns:1.35fr .65fr}
+    header{grid-column:1/-1;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+    h1{font-size:18px;margin:0;font-weight:650}
+    .sub{font-size:12px;color:var(--muted)}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .main{display:flex;flex-direction:column;min-height:70vh}
+    .bar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .bar .left{display:flex;gap:10px;align-items:center}
+    .pill{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);padding:6px 9px;border-radius:999px}
+    .btn{cursor:pointer;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px}
+    .btn:hover{border-color:#2f3550}
+    .btn.primary{border-color:rgba(122,162,255,.55);background:rgba(122,162,255,.08)}
+    .btn.danger{border-color:rgba(255,107,107,.55);background:rgba(255,107,107,.08)}
+    .content{padding:14px;display:flex;flex-direction:column;gap:12px}
+    .title{font-size:14px;font-weight:650;margin:0}
+    .text{font-size:14px}
+    .text p{margin:0 0 10px 0}
+    .text p:last-child{margin:0}
+    .thoughts{margin-top:10px;border-left:3px solid rgba(122,162,255,.5);padding-left:10px;color:var(--muted);font-style:italic}
+    .choices{margin-top:auto;border-top:1px solid var(--line);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+    .choiceRow{display:flex;flex-wrap:wrap;gap:10px}
+    .choice{flex:1;min-width:210px;text-align:left}
+    .side{display:flex;flex-direction:column;gap:14px}
+    .side .section{padding:12px 14px;border-bottom:1px solid var(--line)}
+    .side .section:last-child{border-bottom:none}
+    .side h2{font-size:13px;margin:0 0 10px 0;font-weight:650}
+    .kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);margin:6px 0}
+    .kv b{color:var(--ink);font-weight:650}
+    .list{display:flex;flex-wrap:wrap;gap:8px}
+    .tag{font-family:var(--mono);font-size:12px;border:1px solid var(--line);color:var(--muted);padding:6px 8px;border-radius:999px}
+    .tag.ok{border-color:rgba(107,255,179,.55);background:rgba(107,255,179,.06)}
+    .journal{font-size:12px;color:var(--muted)}
+    .journal .item{padding:8px 10px;border:1px solid var(--line);border-radius:12px;margin:8px 0;background:rgba(255,255,255,.02)}
+    .small{font-size:12px;color:var(--muted)}
+    @media (max-width:920px){.wrap{grid-template-columns:1fr}.main{min-height:62vh}}
+    #metaRow{justify-content:flex-end}
+  </style>
 </head>
 <body>
-    <div id="game-container">
-        <h1>Welcome to The House</h1>
-        <p id="description">This is a placeholder for your HTML game. Add your game logic here.</p>
-        <button id="start-button">Start Game</button>
-        <div id="game-area"></div>
+  <header class="wrap" style="padding-bottom:0">
+    <div>
+      <h1>Fixing Up a House — Beat 1 Prototype</h1>
+      <div class="sub">Playable beats 1.1 through 1.8. Toggle actor notes. Track props and clues.</div>
     </div>
-    <script src="script.js"></script>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+      <button class="btn primary" id="btnNew">New run</button>
+      <button class="btn" id="btnSave">Save</button>
+      <button class="btn" id="btnLoad">Load</button>
+      <button class="btn danger" id="btnReset">Reset save</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section class="panel main" aria-label="Story panel">
+      <div class="bar">
+        <div class="left">
+          <span class="pill" id="beatPill">Beat 1.1</span>
+          <span class="pill" id="locPill">Backroad</span>
+        </div>
+        <div class="left">
+          <button class="btn" id="btnToggleNotes">Actor notes: off</button>
+          <button class="btn" id="btnToggleType">Typewriter: on</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <h2 class="title" id="sceneTitle">Loading…</h2>
+        <div class="text" id="sceneText" aria-live="polite"></div>
+        <div class="small" id="hintText"></div>
+      </div>
+
+      <div class="choices" aria-label="Choices">
+        <div class="choiceRow" id="choiceRow"></div>
+
+        <div class="choiceRow" id="metaRow" aria-label="End of beat actions">
+          <button class="btn" id="btnBeatReplay">Replay</button>
+          <button class="btn danger" id="btnBeatSaveStop">Save and stop</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel side" aria-label="Status panel">
+      <div class="section">
+        <h2>Status</h2>
+        <div class="kv"><span>Trust</span><b id="trustVal">0</b></div>
+        <div class="kv"><span>Normalcy</span><b id="normVal">0</b></div>
+        <div class="kv"><span>Unease</span><b id="uneaseVal">0</b></div>
+        <div class="kv"><span>Time</span><b id="timeVal">Late afternoon</b></div>
+      </div>
+
+      <div class="section">
+        <h2>Dev</h2>
+        <button class="btn" id="btnDev">Dev panel: off</button>
+        <pre class="small" id="devOut" style="white-space:pre-wrap;margin:10px 0 0 0;font-family:var(--mono)"></pre>
+      </div>
+
+      <div class="section">
+        <h2>Inventory</h2>
+        <div class="list" id="invList"></div>
+        <div class="small">Props appear as you discover them.</div>
+      </div>
+
+      <div class="section">
+        <h2>Clues</h2>
+        <div class="journal" id="journal"></div>
+      </div>
+    </aside>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  const state = {
+    beat: "1.1",
+    showNotes: false,
+    showDev: false,
+    typewriter: true,
+    trust: 0,
+    normalcy: 0,
+    unease: 0,
+    time: "Late afternoon",
+    inv: new Set(),
+    clues: [],
+    flags: {
+      gotPliers: true,
+      breakerReset: false,
+      code8139: false,
+      gotBoltCutters: false,
+      gotBucket: false,
+      gotWellKey: false,
+      gotRadio: false,
+      deliveredWater: false,
+      houseRulesStated: false,
+      logStarted: false,
+      continuitySlipNoted: false,
+      townWarningTakenSeriously: false,
+      ruleSpoken: false,
+      radioConstraintMode: false,
+      radioWord: "",
+      repeatTestDone: false,
+      procedureMode: false,
+      usedMethodNotForce: false,
+      loopCount: 0,
+      remembersLoop: false,
+      learnedRules: {}
+    }
+  };
+
+  const beats = {
+    "1.1": {
+      title: "Backroad approach",
+      loc: "Car, backroad",
+      time: "Late afternoon",
+      text: [
+        "The backroad is quiet. Dry brush and pale grass pass in repeating patterns outside the windows.",
+        "Amanda drives. Ashley sits in the passenger seat with a compact mirror in her palm.",
+        "A van follows at a steady distance in the rearview mirror.",
+        "The road crests. A dirt drive branches off. Past a clearing, a two story house comes into view.",
+        "A porch light is on in daylight. Curtains are drawn with thin gaps leaking light."
+      ],
+      notes: [
+        "[AMANDA: Keep it friendly. Store details. Do not correct anyone out loud yet.]",
+        "[ASHLEY: Treat the light as welcome. Stay pleasant. Do not be the first to say it feels wrong.]"
+      ],
+      choices: [
+        { t: "Say nothing. Turn onto the dirt drive.", next: "1.2", fx: (s)=>{ s.unease += 1; } },
+        { t: "Joke to Ashley about Scott’s planning.", next: "1.2", fx: (s)=>{ s.trust += 1; s.normalcy += 1; } }
+      ],
+      hint: "Your tone sets the baseline."
+    },
+    "1.2": {
+      title: "Arrival and unloading",
+      loc: "Clearing and porch",
+      time: "Late afternoon",
+      text: [
+        "The car rolls into a packed dirt clearing. Gravel crunches under the tires. Dust rises and settles slowly.",
+        "Scott arrives behind you and lifts the tailgate. Boxes are stacked tight. Twine knots are quick and utilitarian.",
+        "Brian’s engine sound is faint in the distance, then closer, then fades again behind dust."
+      ],
+      notes: [
+        "[AMANDA: Keep a clear lane to the door. Make Scott carry something heavy.]"
+      ],
+      choices: [
+        { t: "Stage boxes on the porch.", next: "1.3", fx: (s)=>{ s.normalcy += 1; s.trust += 1; } },
+        { t: "Wait for Brian before entering.", next: "1.3", fx: (s)=>{ s.unease += 1; s.trust += 1; } }
+      ],
+      hint: "The porch becomes a landmark."
+    },
+    "1.3": {
+      title: "Brian arrives. First entry.",
+      loc: "Porch and entry",
+      time: "Late afternoon",
+      text: [
+        "Brian’s sedan breaks through the dust and stops angled slightly off straight.",
+        "Scott opens the front door with a worn brass key. The air inside smells of old wood and faint cleaner.",
+        "The entry table holds a flashlight placed parallel to the table edge. A coil of rope sits on a nearby box."
+      ],
+      notes: [
+        "[AMANDA: Map the space. Do not touch the flashlight yet.]"
+      ],
+      choices: [
+        { t: "Follow the backpacks upstairs instruction.", next: "1.4", fx: (s)=>{ s.normalcy += 1; s.trust += 1; } },
+        { t: "Pause and scan the hall and stairs.", next: "1.4", fx: (s)=>{ s.unease += 1; s.trust += 1; } }
+      ],
+      hint: "The entry table repeats."
+    },
+    "1.4": {
+      title: "Rooms claimed. Task assigned.",
+      loc: "Upstairs then living room",
+      time: "Late afternoon",
+      text: [
+        "Upstairs, backpacks land in the first room on the left.",
+        "Brian claims the room with the window that opens. Ashley notices old stains on her mattress.",
+        "Back downstairs, Scott cannot find the tape deck and asks Amanda to search."
+      ],
+      notes: [
+        "[AMANDA: Say yes without becoming staff. Demand a trade.]"
+      ],
+      choices: [
+        { t: "Take the key and tell Scott to carry heavy boxes while you search.", next: "1.5", fx: (s)=>{ s.trust += 1; s.normalcy += 1; } },
+        { t: "Take the key and leave without comment.", next: "1.5", fx: (s)=>{ s.unease += 1; } }
+      ],
+      hint: "Delegation changes relationships."
+    },
+    "1.5": {
+      title: "Study tableau. First denied door.",
+      loc: "Kitchen hall and study",
+      time: "Late afternoon",
+      text: [
+        "The kitchen hall is narrow. The breaker cover is labeled: KITCHEN, HALL, PORCH LIGHT, UPSTAIRS.",
+        "The study is staged: blank notepad aligned, pen aligned, lamp unplugged with cord coiled.",
+        "A folder holds a 1942 discharge notice with formal language.",
+        "The utility closet knob turns slightly, then stops. The storage room lock refuses the key."
+      ],
+      notes: [
+        "[AMANDA: The neatness feels authored. Keep that private evidence.]"
+      ],
+      choices: [
+        { t: "Return and demand the correct key.", next: "1.6", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'1942 letter', v:'A discharge notice is filed in the study.'}); } },
+        { t: "Waste time trying doors again.", next: "1.6", fx: (s)=>{ s.unease += 2; s.clues.push({k:'1942 letter', v:'A discharge notice is filed in the study.'}); } }
+      ],
+      hint: "Prepared rooms suggest intent."
+    },
+    "1.6": {
+      title: "Storage, breaker, tape deck",
+      loc: "Storage room and kitchen",
+      time: "Late afternoon",
+      text: [
+        "Scott hands over a cleaner silver key.",
+        "The storage room opens. Boxes are labeled TOOLS, WATER, LIGHTS. A tote labeled MUSIC sits on a lower shelf.",
+        "Inside: a tape deck and speakers. The power cord has a taped splice.",
+        "At the kitchen counter, the outlet is dead. Amanda flips the labeled breaker. The tape deck powers on."
+      ],
+      notes: ["[AMANDA: Fix one thing. Make Scott work while you solve it.]"],
+      choices: [
+        { t: "Return the tape deck and keep Scott carrying boxes.", next: "1.7", fx: (s)=>{ s.normalcy += 1; s.flags.breakerReset = true; s.inv.add('Tape deck'); s.inv.add('Speakers'); } },
+        { t: "Ignore boxes and focus on testing sound.", next: "1.7", fx: (s)=>{ s.unease += 1; s.flags.breakerReset = true; s.inv.add('Tape deck'); s.inv.add('Speakers'); } }
+      ],
+      hint: "Working sound stabilizes the group."
+    },
+    "1.7": {
+      title: "No water. Yard loop.",
+      loc: "Kitchen to shed",
+      time: "Late afternoon",
+      text: [
+        "The faucet gives an empty sound. No drip. No sputter.",
+        "Amanda exits to the side yard. The shed is tied shut with rope.",
+        "A cage sits half hidden in brush. Pliers open it. A damp note shows 8139.",
+        "A lockbox opens. Bolt cutters snap the rope. The shed holds a bucket and a folded 1944 clipping."
+      ],
+      notes: ["[AMANDA: You are doing labor to keep the group intact.]"],
+      choices: [
+        { t: "Take the bucket. Head uphill to the well.", next: "1.8", fx: (s)=>{ s.flags.code8139=true; s.flags.gotBoltCutters=true; s.flags.gotBucket=true; s.inv.add('Pliers'); s.inv.add('Bolt cutters'); s.inv.add('Bucket'); s.clues.push({k:'8139', v:'Code from the cage note.'}); s.clues.push({k:'1944 clipping', v:'A missing teen story folded in the shed.'}); } },
+        { t: "Bring the bucket back first. Risk delay.", next: "1.8", fx: (s)=>{ s.flags.code8139=true; s.flags.gotBoltCutters=true; s.flags.gotBucket=true; s.unease += 1; s.inv.add('Pliers'); s.inv.add('Bolt cutters'); s.inv.add('Bucket'); s.clues.push({k:'8139', v:'Code from the cage note.'}); s.clues.push({k:'1944 clipping', v:'A missing teen story folded in the shed.'}); } }
+      ],
+      hint: "Outside is exposed."
+    },
+    "1.8": {
+      title: "Well key. Radio payoff.",
+      loc: "Well to house",
+      time: "Dusk",
+      text: [
+        "The bucket comes up with cold water and a small old key.",
+        "At the tree line, a human silhouette stands between trunks, then is gone without sound.",
+        "Back in the kitchen, water is poured into a glass.",
+        "The old key opens the under-stairs closet. Inside: a portable radio, fresh batteries, and an unlabeled cassette.",
+        "The radio powers on. Static dominates. A voice fragment breaks through for a second, then drops out again."
+      ],
+      notes: ["[AMANDA: Deliver function first. Do not announce the watcher yet.]"],
+      choices: [
+        { t: "Continue.", next: "2.1", fx: (s)=>{ 
+            s.flags.gotWellKey=true; 
+            s.flags.gotRadio=true; 
+            s.flags.deliveredWater=true; 
+            s.inv.add('Well key'); 
+            s.inv.add('Radio'); 
+            s.inv.add('AA batteries'); 
+            s.inv.add('Cassette (unlabeled)'); 
+            s.clues.push({k:'Watcher', v:'A silhouette at the tree line near the well.'}); 
+          } 
+        },
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{} }
+      ],
+      hint: "Beat 1 ends with unstable sound."
+    },
+
+    "2.1": {
+      title: "Inventory and the decision",
+      loc: "Living room",
+      time: "Dusk",
+      text: [
+        "The radio hisses with static near the front window. The tape deck power light stays on, but the room still feels quiet between bursts of noise.",
+        "Boxes are half-open. Packing paper is piled near the couch. Dust has settled into the corners of the entryway.",
+        "A quick check makes it obvious what’s missing: ice, real food, bottled water, and spare batteries.",
+        "Brian’s sedan is still clear and already facing out. The wagon and the van are boxed in close to the porch."
+      ],
+      notes: [
+        "[AMANDA: Keep it practical. One car leaves, one car stays. Do not let this become an argument about blame.]"
+      ],
+      choices: [
+        { t: "Send Brian with a short list and a time limit.", next: "2.2", fx: (s)=>{ s.normalcy += 1; s.trust += 1; } },
+        { t: "Walk Brian to the car and watch the drive until he disappears.", next: "2.2", fx: (s)=>{ s.unease += 1; s.trust += 1; } }
+      ],
+      hint: "A plan reduces friction, not risk."
+    },
+
+    "2.2": {
+      title: "After the engine fades",
+      loc: "Entryway and living room",
+      time: "Dusk",
+      text: [
+        "Brian’s sedan pulls down the drive. Dust lifts behind it and then settles into the weeds.",
+        "The porch light looks brighter now that the sky has dimmed. The curtains still stay closed.",
+        "Inside, the radio catches a voice fragment for a second, then returns to static.",
+        "A floorboard creaks upstairs. Ashley stops moving and looks toward the staircase."
+      ],
+      notes: [
+        "[AMANDA: Keep Ashley steady. If you chase every sound, you teach the house what works.]"
+      ],
+      choices: [
+        { t: "Go upstairs with Ashley and check the hall together.", next: "2.3", fx: (s)=>{ s.trust += 1; s.unease += 1; } },
+        { t: "Keep Ashley downstairs. Listen for a repeat before moving.", next: "2.3", fx: (s)=>{ s.normalcy += 1; s.unease += 1; } }
+      ],
+      hint: "Movement creates information and mistakes."
+    },
+
+    "2.3": {
+      title: "A small failure",
+      loc: "Kitchen hall",
+      time: "Dusk",
+      text: [
+        "The tape deck hum dips and comes back, then dips again. The red light stays on, but the speakers pop once and go quiet.",
+        "The breaker cover labels are easy to read in the hall. One switch sits slightly off alignment compared to the others.",
+        "The entry table flashlight is still centered exactly as before. No one admits they noticed.",
+        "The radio’s static changes texture when someone steps closer to the front window."
+      ],
+      notes: [
+        "[AMANDA: Fix one thing. Do not fix everything. If you fix everything, you become the only system that matters.]"
+      ],
+      choices: [
+        { t: "Flip the breaker back into alignment and test the tape deck again.", next: "2.4", fx: (s)=>{ s.normalcy += 1; s.unease += 1; s.clues.push({k:'Breaker drift', v:'One labeled switch was slightly out of alignment.'}); } },
+        { t: "Leave it alone for now and focus on batteries and light.", next: "2.4", fx: (s)=>{ s.unease += 1; } }
+      ],
+      hint: "Systems that fail once tend to fail again."
+    },
+
+    "2.4": {
+      title: "Searching for batteries",
+      loc: "Study and utility closet",
+      time: "Dusk",
+      text: [
+        "The study still looks staged: blank notepad aligned, pen aligned, lamp cord coiled. The LIGHTS box is where it was.",
+        "The small closet near the kitchen sticks when it opens. The air inside is colder and smells like cardboard and metal.",
+        "When the door swings shut, the knob turns but the latch doesn’t pull back cleanly. It holds for a beat too long.",
+        "A thin plastic card in your wallet is stiff enough to reach the latch edge if you slide it into the gap."
+      ],
+      notes: [
+        "[AMANDA: Do not panic. Do not make noise that turns this into a crisis. Treat it like a mechanical problem.]"
+      ],
+      choices: [
+        { t: "Search the closet anyway and use the card if it sticks again.", next: "2.5", fx: (s)=>{ s.unease += 1; s.inv.add('Wallet card'); s.clues.push({k:'Sticky latch', v:'A closet latch catches even when the knob turns.'}); } },
+        { t: "Stay out of the closet. Take what you can from the LIGHTS box and leave.", next: "2.5", fx: (s)=>{ s.normalcy += 1; s.clues.push({k:'LIGHTS box', v:'Spare bulbs and fuses are staged in the study.'}); } }
+      ],
+      hint: "If a door misbehaves once, assume it will misbehave again."
+    },
+
+    "2.5": {
+      title: "What to tell Ashley",
+      loc: "Living room",
+      time: "Dusk",
+      text: [
+        "Ashley sits near the couch with her water glass. She keeps looking toward the window and then away again.",
+        "The radio spits a clearer fragment for a second. It is still not long enough to understand. Static resumes.",
+        "The bucket left a dotted drip trail across the kitchen floor that no one has cleaned yet.",
+        "Ashley asks if you saw anything near the well, and her voice stays casual in a way that does not match her face."
+      ],
+      notes: [
+        "[AMANDA: If you tell her, you change her. If you don’t, you change yourself. Pick the option you can live with.]"
+      ],
+      choices: [
+        { t: "Tell her about the silhouette at the tree line.", next: "2.6", fx: (s)=>{ s.trust += 2; s.unease += 1; } },
+        { t: "Keep it private. Say you saw nothing useful.", next: "2.6", fx: (s)=>{ s.normalcy += 1; s.unease += 1; } }
+      ],
+      hint: "Secrecy can be protection or isolation."
+    },
+
+    "2.6": {
+      title: "Waiting for headlights",
+      loc: "Living room and front window",
+      time: "Night",
+      text: [
+        "Outside, the porch light holds steady. The road beyond the clearing is black.",
+        "The radio’s static thins for a moment. A voice lands for a full second, then disappears again.",
+        "The tape deck stays powered but refuses to feel reliable. The house keeps its own rhythm.",
+        "You wait for headlights on the drive and try not to turn waiting into a ritual."
+      ],
+      notes: [
+        "[AMANDA: Stay literal. Do not invent a pattern you can’t prove. Keep the room organized so you can move fast.]"
+      ],
+      choices: [
+        { t: "Continue.", next: "2.7", fx: (s)=>{ 
+            s.clues.push({k:'Radio fragment', v:'A longer voice fragment broke through, then fell back to static.'}); 
+          } 
+        },
+        { t: "Replay from 2.1.", next: "2.1", fx: (s)=>{} }
+      ],
+      hint: "Beat 2 ends before the return."
+    },
+
+    "2.7": {
+      title: "House Rules",
+      loc: "Living room and entryway",
+      time: "Night",
+      text: [
+        "The radio hisses near the window. Brian sets the new batteries on the entry table without moving the centered flashlight.",
+        "Scott opens the food bag and starts naming what they forgot. Ashley keeps her water glass close and watches the staircase.",
+        "Amanda closes the front door and checks the lock twice. She speaks before anyone drifts into separate rooms.",
+        "Amanda says they are staying in one place unless everyone knows where everyone is, and nobody steps outside alone.",
+        "Scott laughs once and agrees too quickly. Brian nods and looks at the curtains instead of the door."
+      ],
+      choices: [
+        { t: "Write a short list and assign tasks in the same room.", next: "2.8", fx: (s)=>{ s.trust += 1; s.normalcy += 1; s.flags.houseRulesStated = true; } },
+        { t: "Let it slide and focus on getting music working.", next: "2.8", fx: (s)=>{ s.normalcy += 1; s.unease += 1; s.flags.houseRulesStated = false; } }
+      ],
+      hint: "Rule: Gather the group before acting. Announce intent."
+    },
+
+    "2.8": {
+      title: "Logbook",
+      loc: "Kitchen table / study threshold",
+      time: "Night",
+      text: [
+        "Amanda pulls a notepad from a moving box and sets it flat on the kitchen table. She writes the date and the house address at the top.",
+        "She writes four lines: porch light on in daylight, faucet gave one drip, radio produced one clear word, silhouette at the tree line.",
+        "Ashley asks why Amanda is writing it down. Scott says it is unnecessary and calls it “paranoid” in a joking voice.",
+        "Brian reads the list and asks Amanda to repeat the radio word exactly as she heard it, without interpretation."
+      ],
+      choices: [
+        { t: "Log it and repeat-test one item on the list with a witness.", next: "2.9", fx: (s)=>{ s.trust += 1; s.normalcy += 1; s.flags.logStarted = true; s.clues.push({k:'Logbook', v:'Amanda started a written log of anomalies.'}); } },
+        { t: "Stop writing and keep it casual.", next: "2.9", fx: (s)=>{ s.unease += 1; s.flags.logStarted = false; } }
+      ],
+      hint: "Rule: Log and repeat-test before you escalate."
+    },
+
+    "2.9": {
+      title: "A wrong word",
+      loc: "Living room near the radio",
+      time: "Night",
+      text: [
+        "The radio hisses and then clears for less than a second. Brian flinches and then smiles as if he meant to.",
+        "Scott says they should “reset” the room by moving boxes away from the windows and keeping the flashlight on the entry table.",
+        "Ashley tells Scott not to “break continuity” by rearranging the entryway again, then stops and laughs like she made a joke.",
+        "Amanda asks Ashley what she meant by continuity. Ashley looks confused for a moment, then says she meant “routine.”",
+        "The house stays quiet long enough for the question to feel unanswered."
+      ],
+      choices: [
+        { t: "Press Ashley once, calmly, in front of Brian and Scott.", next: "3.1", fx: (s)=>{ s.trust += 1; s.unease += 1; s.flags.continuitySlipNoted = true; s.clues.push({k:'Continuity slip', v:'Ashley used production language and then corrected herself.'}); } },
+        { t: "Let it go and focus on the practical plan for the next hour.", next: "3.1", fx: (s)=>{ s.normalcy += 1; s.flags.continuitySlipNoted = false; } }
+      ],
+      hint: "Rule: Treat slips as data. Do not force an explanation."
+    },
+
+    "3.1": {
+      title: "Headlights and bags",
+      loc: "Entryway and living room",
+      time: "Night",
+      text: [
+        "Headlights sweep the clearing and slide across the porch rail. Gravel crunches and an engine idles before shutting off.",
+        "Brian steps in carrying a plastic bag and a small cardboard box. He sets them on the entry table without moving the centered flashlight.",
+        "Ice clinks in the bag. Bottled water knocks together. The cardboard box is batteries and a small roll of tape.",
+        "Brian says the store clerk asked questions about the house before selling him anything, then laughed immediately like it was a routine."
+      ],
+      choices: [
+        { t: "Ask Brian exactly what the clerk said, word for word.", next: "3.2", fx: (s)=>{ s.trust += 1; s.unease += 1; s.inv.add('Ice'); s.inv.add('Bottled water'); s.inv.add('Batteries'); s.inv.add('Tape'); } },
+        { t: "Tell Brian to sit and drink water first, then explain.", next: "3.2", fx: (s)=>{ s.trust += 1; s.normalcy += 1; s.inv.add('Ice'); s.inv.add('Bottled water'); s.inv.add('Batteries'); s.inv.add('Tape'); } }
+      ],
+      hint: "Rule: Outside knowledge changes inside rules."
+    },
+
+    "3.2": {
+      title: "The warning",
+      loc: "Living room near the radio",
+      time: "Night",
+      text: [
+        "Brian sits on an upside-down box and opens the battery pack while he talks. He avoids looking at the staircase.",
+        "He says the clerk asked, \"You going up to the old place with the light on,\" then laughed too fast.",
+        "Brian asked what that meant. The clerk said, \"Nothing. Just do not drink the well water unless you have to,\" and slid the batteries across the counter.",
+        "Scott calls it small-town talk. The radio answers with static and a single thin syllable that is not long enough to understand."
+      ],
+      choices: [
+        { t: "Treat the warning as actionable and set one rule for the house.", next: "3.3", fx: (s)=>{ s.flags.townWarningTakenSeriously = true; s.trust += 1; s.normalcy += 1; } },
+        { t: "Dismiss it and focus on getting the night back on track.", next: "4.1", fx: (s)=>{ s.flags.townWarningTakenSeriously = false; s.normalcy += 1; } }
+      ],
+      hint: "Rule: Do not dismiss outside warnings."
+    },
+
+    "3.3": {
+      title: "One rule out loud",
+      loc: "Living room and entryway",
+      time: "Night",
+      text: [
+        "Amanda states one rule in a normal voice and repeats it once so everyone hears the same words.",
+        "Scott stops smiling for a moment, then agrees and starts moving boxes away from the window without being asked.",
+        "Ashley checks the curtains and keeps her phone in her hand even though there is no signal.",
+        "The radio stays on static. The sound is steady enough to feel intentional."
+      ],
+      choices: [
+        { t: "Write the rule into the logbook and keep everyone in the same room.", next: "3.4", fx: (s)=>{ s.flags.ruleSpoken = true; s.trust += 1; s.normalcy += 1; s.clues.push({k:'House rule', v:'Amanda stated a rule out loud and logged it.'}); } },
+        { t: "Skip the log and start checking the house systems again.", next: "3.4", fx: (s)=>{ s.flags.ruleSpoken = false; s.unease += 1; } }
+      ],
+      hint: "Rule: Log the rule and repeat it before you act."
+    },
+
+    "3.4": {
+      title: "The radio clarifies",
+      loc: "Living room near the radio",
+      time: "Night",
+      text: [
+        "The radio crackles and then clears long enough for one word to land cleanly, then returns to static.",
+        "Brian freezes and looks at Amanda, waiting for her to repeat the word exactly as heard.",
+        "Scott says it sounds like a name and starts to speculate. Ashley tells him to stop talking over it.",
+        "Amanda can either treat the word as a constraint to follow or treat it as a message to chase."
+      ],
+      choices: [
+        { t: "Repeat the word exactly and treat it as a constraint.", next: "3.5", fx: (s)=>{ s.flags.radioConstraintMode = true; s.flags.radioWord = s.flags.radioWord || 'UNKNOWN'; s.clues.push({k:'Radio word', v:'A single clear word landed once. Amanda repeated it without interpretation.'}); s.trust += 1; s.normalcy += 1; } },
+        { t: "Treat it as a message and try to act on what it means.", next: "4.2", fx: (s)=>{ s.flags.radioConstraintMode = false; s.unease += 1; } }
+      ],
+      hint: "Rule: When the radio gives a clear word, treat it as a constraint."
+    },
+
+    "3.5": {
+      title: "Constraint behavior",
+      loc: "Entryway and kitchen hall",
+      time: "Night",
+      text: [
+        "Amanda repeats the radio word again and treats it as a constraint for the next action.",
+        "She keeps Brian and Ashley in the entryway and asks Scott to stay where she can see him.",
+        "The radio static changes texture when someone steps closer to the front window, then returns to baseline when they step back.",
+        "A latch clicks once in the kitchen hall even though no one touched it."
+      ],
+      choices: [
+        { t: "Log what changed and repeat-test the window step with Brian watching.", next: "3.6", fx: (s)=>{ s.flags.repeatTestDone = true; s.trust += 1; s.normalcy += 1; s.clues.push({k:'Repeat-test', v:'Amanda tested the window step and logged the result.'}); } },
+        { t: "Skip the log and go check the kitchen hall latch immediately.", next: "4.5", fx: (s)=>{ s.flags.repeatTestDone = false; s.unease += 1; } }
+      ],
+      hint: "Rule: Log and repeat-test before you escalate."
+    },
+
+    "3.6": {
+      title: "Procedure over impulse",
+      loc: "Entryway and kitchen hall",
+      time: "Night",
+      text: [
+        "Amanda and Brian repeat the window step once, then again, and the radio static changes texture both times in the same way.",
+        "Amanda writes the result down and says it out loud so Ashley and Scott hear the same words.",
+        "The latch in the kitchen hall clicks again, this time closer, as if it is answering the repeated test.",
+        "Amanda moves with the group into the hall and stops before touching anything."
+      ],
+      choices: [
+        { t: "Approach the latch as a mechanical problem with Brian watching.", next: "3.7", fx: (s)=>{ s.trust += 1; s.normalcy += 1; s.flags.procedureMode = true; } },
+        { t: "Let Scott try the latch first while you stand back.", next: "3.7", fx: (s)=>{ s.unease += 1; s.flags.procedureMode = false; } }
+      ],
+      hint: "Rule: Treat resistance as a procedure problem, not a challenge."
+    },
+
+    "3.7": {
+      title: "The stuck latch",
+      loc: "Kitchen hall",
+      time: "Night",
+      text: [
+        "The closet door in the kitchen hall sits closed with the knob slightly off level, as if it was pulled and then released.",
+        "Amanda turns the knob once and feels the latch catch instead of retracting. The door stays closed.",
+        "Brian stands close enough to see her hands. Ashley stays behind them with the flashlight aimed at the knob and the gap.",
+        "Scott steps forward and says the door just needs a harder pull."
+      ],
+      choices: [
+        { t: "Stop and change method: use a thin card to reach the latch while Brian watches.", next: "3.8", fx: (s)=>{ s.flags.usedMethodNotForce = true; s.trust += 1; s.normalcy += 1; s.clues.push({k:'Latch method', v:'Amanda used a thin card and a witness instead of forcing the door.'}); } },
+        { t: "Let Scott force it open to save time.", next: "4.4", fx: (s)=>{ s.flags.usedMethodNotForce = false; s.unease += 1; } }
+      ],
+      hint: "Rule: If a door resists, stop and change method. Do not force it."
+    },
+
+    "3.8": {
+      title: "Opened without force",
+      loc: "Kitchen hall",
+      time: "Night",
+      text: [
+        "Amanda slides a thin card into the gap and feels for the latch edge. Brian keeps the flashlight steady on her hands.",
+        "The latch retracts with a small click and the door opens a few inches. The air inside is colder and smells like cardboard and metal.",
+        "On the top shelf is a small hard case with a folded paper label. The label matches the date Amanda wrote in the logbook.",
+        "From deeper in the house, a single footstep sounds upstairs and then stops."
+      ],
+      choices: [
+        { t: "Keep everyone together and check upstairs as a group.", next: "3.9", fx: (s)=>{ s.trust += 1; s.normalcy += 1; s.flags.groupMove = true; s.clues.push({k:'Case found', v:'A hard case was found in the closet after opening it without force.'}); } },
+        { t: "Tell Brian to stay with Ashley while you check upstairs alone.", next: "4.3", fx: (s)=>{ s.unease += 1; s.flags.groupMove = false; } }
+      ],
+      hint: "Rule: Do not go alone."
+    },
+
+    "3.9": {
+      title: "Group check",
+      loc: "Staircase and upstairs hall",
+      time: "Night",
+      text: [
+        "Amanda takes the flashlight from Ashley and keeps the beam low on the steps. Brian stays close enough that their shoulders nearly touch on the turn.",
+        "Upstairs, the hall is lined with closed doors. The air is still and smells faintly of old paint and dust that has been disturbed recently.",
+        "No one speaks for several seconds. The only sound is the radio static downstairs, muffled through the floor.",
+        "Amanda confirms everyone is present before touching any door."
+      ],
+      choices: [
+        { t: "Return downstairs together and reassess with the logbook.", next: (s)=> hasAllRequiredRules() ? "4.6" : "3.1", fx: (s)=>{ s.flags.groupMove = true; s.trust += 1; s.normalcy += 1; } },
+        { t: "Split up to save time and check separate doors.", next: "4.3", fx: (s)=>{ s.flags.groupMove = false; s.unease += 1; } }
+      ],
+      hint: "Rule: Do not go alone."
+    },
+
+    "4.1": {
+      title: "Cut",
+      loc: "Living room, then set",
+      time: "Night",
+      text: [
+        "Scott dismisses the warning and reaches for the radio volume knob.",
+        "The static stops with no fade. The room tone drops out and the porch light flares to full brightness through the curtains.",
+        "A voice from off to the left says, \"Cut.\"",
+        "The living room changes in one step. A light stand is visible near the wall and a strip of tape marks the floor by the entry table.",
+        "Brian looks toward the off-screen voice and says, \"Back to one,\" like it is an instruction he has repeated before.",
+        "Ashley exhales and says her line came out wrong. Scott asks if the flashlight should stay centered for continuity.",
+        "Amanda does not answer. Her hands are still on the chair back and her attention stays on the word \"Cut\" as if it explained nothing."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R3 = true; resetRunPreserveMemory(); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R3 = true; resetRunPreserveMemory(); } }
+      ],
+      hint: "Rule learned: Do not dismiss outside warnings."
+    },
+
+    "4.2": {
+      title: "Cut",
+      loc: "Living room, then set",
+      time: "Night",
+      text: [
+        "Amanda treats the radio word like a message and starts to move with a plan that is not shared.",
+        "The radio static stops with no fade. The room tone drops out and the porch light flares to full brightness through the curtains.",
+        "A voice from off to the left says, \"Cut.\"",
+        "The living room changes in one step. A light stand is visible near the wall and a strip of tape marks the floor by the entry table.",
+        "Scott smiles at someone off-screen and asks if he should keep improvising or stick to the blocking.",
+        "Brian adjusts his posture and looks past Amanda as if she is a mark he is supposed to hit.",
+        "Ashley says the word sounded clear but the reaction was wrong. No one asks Amanda what she heard."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R5 = true; resetRunPreserveMemory(); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R5 = true; resetRunPreserveMemory(); } }
+      ],
+      hint: "Rule learned: When the radio gives a clear word, treat it as a constraint."
+    },
+
+    "4.3": {
+      title: "Cut",
+      loc: "Upstairs hall, then set",
+      time: "Night",
+      text: [
+        "Amanda separates from the group to check a door alone.",
+        "The house stays quiet for two steps and then the radio downstairs goes silent with no fade.",
+        "A voice from off to the left says, \"Cut.\"",
+        "The upstairs hall shifts in one step. Tape marks are visible on the floor near the baseboard and a cable runs along the wall where it should not be.",
+        "Scott speaks to someone off-screen and asks if the split should happen on the line or on the movement.",
+        "Brian stands in place and watches for a cue. Ashley rubs her eyes and says she thought the timing was different last take.",
+        "Amanda looks at the tape marks and the cable and does not understand why nobody is afraid."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R1 = true; resetRunPreserveMemory(); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R1 = true; resetRunPreserveMemory(); } }
+      ],
+      hint: "Rule learned: Do not go alone."
+    },
+
+    "4.4": {
+      title: "Cut",
+      loc: "Kitchen hall, then set",
+      time: "Night",
+      text: [
+        "Scott forces the knob and pulls hard. The latch catches and then releases with a loud snap.",
+        "The door swings open too far and hits the wall. The sound lands cleanly and then the room tone disappears.",
+        "A voice from off to the left says, \"Cut.\"",
+        "The hall shifts in one step. A grip tape mark is visible on the baseboard where the door hit.",
+        "Scott asks if the snap sounded real enough. Brian watches someone off-screen for approval.",
+        "Ashley says the door swing was wrong for continuity and asks for another take.",
+        "Amanda stands still and looks at the tape marks as if the room has admitted it is rehearsed."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R2 = true; resetRunPreserveMemory(); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R2 = true; resetRunPreserveMemory(); } }
+      ],
+      hint: "Rule learned: If a door resists, stop and change method. Do not force it."
+    },
+
+    "4.5": {
+      title: "Cut",
+      loc: "Kitchen hall, then set",
+      time: "Night",
+      text: [
+        "Amanda moves toward the kitchen hall without logging the change or repeating the test.",
+        "The latch sound repeats once and then stops. The silence that follows feels staged.",
+        "A voice from off to the left says, \"Cut.\"",
+        "The hall shifts in one step. Tape marks are visible on the floor near the threshold and a boom shadow rests on the ceiling line.",
+        "Scott asks if they want the latch click to happen on the line or on the movement.",
+        "Brian watches someone off-screen for approval. Ashley rubs her forehead and asks for a reset.",
+        "Amanda stays in the doorway and looks from the tape marks to the entry table, as if the room is revealing a plan she never agreed to."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R7 = true; resetRunPreserveMemory(); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R7 = true; resetRunPreserveMemory(); } }
+      ],
+      hint: "Rule learned: Log and repeat-test before you escalate."
+    },
+
+    "4.6": {
+      title: "Wrap",
+      loc: "Living room",
+      time: "Night",
+      text: [
+        "Amanda repeats the rule set out loud and the house stops providing new triggers.",
+        "The radio stays on static and never clears again. The porch light stays at normal brightness.",
+        "No voice calls for a reset. The group stays present and finishes the night without splitting."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1" },
+        { t: "Save and stop.", next: null }
+      ],
+      hint: "Ending: Good."
+    },
+
+    "5.1": {
+      title: "The house starts assigning",
+      loc: "Living room and kitchen",
+      time: "Night",
+      text: [
+        "Amanda lays items out on the table: batteries, the replacement knob bag, the note with the code, and the folded clipping.",
+        "Scott stares at the clipping and asks why she didn’t mention it earlier. Ashley says she doesn’t want to hear about missing kids at night.",
+        "The radio gives a clearer phrase again, and this time the final word sounds like a room name or a direction inside the house.",
+        "Brian suggests they treat the radio like a checklist and verify what it references without splitting up.",
+        "The tape deck pops once, and the porch light outside flickers just enough to be noticed."
+      ],
+      notes: [
+        "[AMANDA: You are done improvising. You want a controlled test: one instruction, one response, one observation.]"
+      ],
+      choices: [
+        { t: "Follow the radio phrase as a direction and move as a group.", next: "5.2", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'Radio direction', v:'The phrase ended with a word that sounded like a location.'}); } },
+        { t: "Refuse to follow it and instead secure doors and windows first.", next: "5.2", fx: (s)=>{ s.normalcy += 1; s.unease += 1; } }
+      ],
+      hint: "At some point, a choice becomes a test."
+    },
+
+    "5.2": {
+      title: "One instruction, one check",
+      loc: "Center hall and study",
+      time: "Night",
+      text: [
+        "Amanda keeps the radio on low and repeats the last phrase out loud once, the way you repeat a phone number before you forget it.",
+        "The group moves together into the hall. Nobody closes any door fully behind them. The flashlight beam stays low, aimed at the floor and latch edges.",
+        "They stop at the study and open it. The room still looks staged, but one thing has changed: the pen is no longer perfectly parallel to the notepad.",
+        "The top page of the notepad is no longer blank. A single line has been written in block letters, centered on the page.",
+        "The line matches one word from the radio phrase. The ink looks fresh."
+      ],
+      notes: [
+        "[AMANDA: You do not debate how it got there. You treat it as a test condition: new information appeared after the phrase repeated.]"
+      ],
+      choices: [
+        { t: "Log the exact word and the pen angle, then back out and end here.", next: "5.3", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'Study note', v:'A new line appeared on the notepad and matched a word from the radio.'}); } },
+        { t: "Touch the ink with a fingertip to confirm it’s fresh, then end here.", next: "5.3", fx: (s)=>{ s.unease += 2; s.clues.push({k:'Fresh ink', v:'Ink on the study notepad felt fresh to the touch.'}); } }
+      ],
+      hint: "A controlled test produced a change."
+    },
+
+    "5.3": {
+      title: "The second line",
+      loc: "Study and hall",
+      time: "Night",
+      text: [
+        "The group returns to the study together. The room still looks staged, but the notepad now has a second line beneath the first.",
+        "The new line is centered and written in the same block style as before. The pen is angled a few degrees differently than it was.",
+        "The radio downstairs pushes through static and lands on a short phrase that includes the same key word from the page, then drops out again.",
+        "Scott insists it could be coincidence. Brian says coincidence is still data if it repeats."
+      ],
+      notes: [
+        "[AMANDA: You keep it procedural. You want one more controlled check before anyone spirals.]"
+      ],
+      choices: [
+        { t: "Write down both lines and the radio phrase, then test the next location as a group.", next: "5.4", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'Second line', v:'A second line appeared on the notepad and matched part of the radio phrase.'}); } },
+        { t: "Stop testing. Move back to the living room and focus on safety rules only.", next: "5.4", fx: (s)=>{ s.normalcy += 1; s.unease += 1; s.clues.push({k:'Second line', v:'A second line appeared on the notepad and matched part of the radio phrase.'}); } }
+      ],
+      hint: "A repeatable change creates obligations."
+    },
+
+    "5.4": {
+      title: "The latch proves the point",
+      loc: "Kitchen hall",
+      time: "Night",
+      text: [
+        "Amanda leads the group to the small closet near the kitchen. The flashlight stays low, aimed at the floor and the latch edge.",
+        "The door opens with a sticky hinge sound. Inside are ordinary maintenance items and a sealed bag holding a replacement doorknob set.",
+        "When the door swings shut, it closes too cleanly. The knob turns, but the latch does not pull back on the first try.",
+        "Amanda slides a stiff card into the latch gap and applies steady pressure. The latch gives after a second, and the door opens again.",
+        "Brian says it out loud: if anyone was alone, that would have been a trap even if it is only carpentry."
+      ],
+      notes: [
+        "[AMANDA: You keep your voice calm. You treat it as mechanics, but you do not minimize the consequence.]"
+      ],
+      choices: [
+        { t: "Use the screwdriver from the LIGHTS box to tighten the latch plate screws.", next: "5.5", fx: (s)=>{ s.normalcy += 1; s.inv.add('Screwdriver'); s.clues.push({k:'Latch catch', v:'The latch failed once even with the knob turning. A stiff card freed it.'}); } },
+        { t: "Do not “fix” it. Treat it as a hazard and keep it propped open.", next: "5.5", fx: (s)=>{ s.unease += 1; s.inv.add('Replacement knob set'); s.clues.push({k:'Latch catch', v:'The latch failed once even with the knob turning. A stiff card freed it.'}); } }
+      ],
+      hint: "Fixing a hazard can remove warning signs."
+    },
+
+    "5.5": {
+      title: "The well warning lands",
+      loc: "Living room",
+      time: "Night",
+      text: [
+        "Back in the living room, the radio holds a clearer signal for two full seconds. The phrase includes the word basement this time, then collapses into static.",
+        "Brian repeats what the clerk said: do not drink the well water unless you have to. Ashley sets her glass down and stops pretending she is fine.",
+        "Scott argues that the basement is optional. Amanda points out that an optional basement becomes necessary when the house won’t run water any other way.",
+        "The tape deck pops once, then stays quiet, as if it is waiting for a decision."
+      ],
+      notes: [
+        "[AMANDA: You are not chasing horror. You are chasing function. Function forces movement.]"
+      ],
+      choices: [
+        { t: "Stage a controlled descent: flashlight, screwdriver, and the door rule.", next: "5.6", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'Basement word', v:'The radio phrase included the word basement clearly.'}); } },
+        { t: "Refuse to go down tonight. Barricade and wait for morning.", next: "5.6", fx: (s)=>{ s.normalcy += 1; s.unease += 2; s.clues.push({k:'Basement word', v:'The radio phrase included the word basement clearly.'}); } }
+      ],
+      hint: "Avoidance is also a plan."
+    },
+
+    "5.6": {
+      title: "At the basement door",
+      loc: "Center hall",
+      time: "Night",
+      text: [
+        "The basement door sits in the hall with darker paint and a cooler seam. The air near it feels different than the rest of the house.",
+        "Amanda keeps everyone within arm’s reach. Scott keeps his keys in his hand, not because he needs them, because holding them makes him steadier.",
+        "The flashlight beam catches scuffs on the floor near the threshold, old marks from something dragged long ago.",
+        "From downstairs, past the door, there is no sound. The house stays quiet enough to make listening feel like work."
+      ],
+      notes: [
+        "[AMANDA: You do not open the door yet. You end the beat with preparation, not action.]"
+      ],
+      choices: [
+        { t: "Continue.", next: "6.1", fx: (s)=>{ s.clues.push({k:'Basement threshold', v:'Cool air at the seam and old drag scuffs near the threshold.'}); } },
+        { t: "Replay from 5.3.", next: "5.3", fx: (s)=>{} }
+      ],
+      hint: "Preparation changes the outcome more than courage."
+    },
+
+    "6.1": {
+      title: "First step down",
+      loc: "Basement stairs",
+      time: "Late night",
+      text: [
+        "Amanda opens the basement door and holds it. The air that comes up is cooler and smells like concrete and old metal.",
+        "Brian takes the flashlight. The beam stays low on the steps. Scott keeps one hand on the rail. Ashley stays at the top of the stairs within sight.",
+        "The first few steps are concrete with grit embedded in the surface. The handrail finish is worn where hands have gripped in the past.",
+        "Halfway down, the radio upstairs briefly clears and the same short phrase lands again, then drops back into static."
+      ],
+      notes: [
+        "[AMANDA: Move slow. Keep spacing tight. If someone needs to step back, the door stays open.]"
+      ],
+      choices: [
+        { t: "Continue down. Keep the door propped and the group in one line.", next: "6.2", fx: (s)=>{ s.unease += 1; s.trust += 1; } },
+        { t: "Stop at the landing and listen for a repeat before taking another step.", next: "6.2", fx: (s)=>{ s.unease += 1; s.normalcy += 1; } }
+      ],
+      hint: "A descent is a procedure, not a dare."
+    },
+
+    "6.2": {
+      title: "The pump corner",
+      loc: "Basement utility area",
+      time: "Late night",
+      text: [
+        "The flashlight finds a utility corner: a pressure tank, a pump housing, and a shutoff valve with mineral staining around the fittings.",
+        "A thin drip line runs down the concrete wall beneath the valve, old and dry. A bucket sits under it anyway, empty.",
+        "A breaker box label is taped to a beam: PUMP. It is handwritten in the same thick marker style as the storage labels upstairs.",
+        "Brian touches the valve handle. It is already in the open position."
+      ],
+      notes: [
+        "[AMANDA: You do not yank anything. You confirm states first: on or off, open or closed, wet or dry.]"
+      ],
+      choices: [
+        { t: "Check the pump power label and trace the wire run with the flashlight.", next: "6.3", fx: (s)=>{ s.clues.push({k:'Pump label', v:'A handwritten PUMP label is taped to a beam near the utility corner.'}); s.unease += 1; } },
+        { t: "Test the pump switch once, then stop and listen for changes upstairs.", next: "6.3", fx: (s)=>{ s.normalcy += 1; s.unease += 1; s.clues.push({k:'Pump test', v:'A single controlled pump test was attempted.'}); } }
+      ],
+      hint: "If someone staged the house, they staged this too."
+    },
+
+    "6.3": {
+      title: "The missing piece",
+      loc: "Basement storage nook",
+      time: "Late night",
+      text: [
+        "A short hallway off the utility corner ends at a small interior door. The door is closed. The knob turns, but the latch catches for a beat before it releases.",
+        "Inside is a storage nook with shelving and dust. On the floor is a clean rectangle where something heavy sat recently.",
+        "A length of hose lies coiled on a lower shelf. The end fitting is wet, as if it was used and put away.",
+        "On a nail above the clean rectangle hangs a ring of old keys. One key is missing from the ring."
+      ],
+      notes: [
+        "[AMANDA: You do not touch the keys first. You scan for what changed: clean rectangle, wet fitting, missing key.]"
+      ],
+      choices: [
+        { t: "Log the missing key ring and take the wet hose as evidence.", next: "6.4", fx: (s)=>{ s.inv.add('Hose (wet fitting)'); s.clues.push({k:'Missing key ring', v:'An old key ring hangs in the basement storage nook with one key missing.'}); s.unease += 1; } },
+        { t: "Leave everything in place and back out slowly, keeping the door from closing fully.", next: "6.4", fx: (s)=>{ s.trust += 1; s.clues.push({k:'Clean rectangle', v:'A clean rectangle in dust suggests a heavy object was removed recently.'}); s.unease += 1; } }
+      ],
+      hint: "Evidence can be moved or recorded."
+    },
+
+    "6.4": {
+      title: "Upstairs response",
+      loc: "Stairs and living room",
+      time: "Late night",
+      text: [
+        "As the group returns to the stairs, the house responds upstairs: a soft scrape across the floor, then silence.",
+        "When Brian takes one step up, the scrape repeats once, then stops as soon as he pauses.",
+        "Back in the living room, the faucet in the kitchen gives a single drip. One drip only. Then nothing.",
+        "The radio hisses, then a short phrase lands cleanly enough to understand one new word: stop."
+      ],
+      notes: [
+        "[AMANDA: You have a pattern and a new word. You do not treat it as a command yet. You treat it as a data point.]"
+      ],
+      choices: [
+        { t: "End here. Save and stop.", next: null, fx: (s)=>{ s.clues.push({k:'One drip', v:'The kitchen faucet produced exactly one drip after the basement check.'}); s.clues.push({k:'Radio word', v:'The radio delivered one clear word: stop.'}); } },
+        { t: "Continue to Beat 7.1.", next: null, fx: (s)=>{ s.clues.push({k:'One drip', v:'The kitchen faucet produced exactly one drip after the basement check.'}); s.clues.push({k:'Radio word', v:'The radio delivered one clear word: stop.'}); } }
+      ],
+      hint: "The house gives partial compliance."
+    }
+  };
+
+  function validateBeats() {
+    const beatKeys = Object.keys(beats);
+    for (const key of beatKeys) {
+      const beat = beats[key];
+      if (!beat || typeof beat !== 'object') {
+        throw new Error(`Beat "${key}" is not a valid object.`);
+      }
+      if (!beat.choices || !Array.isArray(beat.choices)) {
+        throw new Error(`Beat "${key}" has no choices array.`);
+      }
+      if (beat.choices.length < 2 && !beat.choices.some(c => c.next === null)) {
+        throw new Error(`Beat "${key}" has ${beat.choices.length} choices and no end choice (next: null).`);
+      }
+      for (const choice of beat.choices) {
+        if (choice.next !== null && !(choice.next in beats)) {
+          throw new Error(`Beat "${key}" choice next "${choice.next}" does not exist.`);
+        }
+      }
+    }
+  }
+
+  function validateRuleWrites(){
+    try{
+      Object.entries(beats).forEach(([k, b]) => {
+        (b.choices || []).forEach((c) => {
+          if (typeof c.fx === "function") {
+            const s = c.fx.toString();
+            if (s.includes("learnedRules") && !k.startsWith("4.")) {
+              console.error("Rule write outside CUT beat:", k);
+            }
+          }
+        });
+      });
+    }catch(e){
+      console.warn("validateRuleWrites failed:", e);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  }
+
+  function memoryPrefix(){
+    const lc = state.flags.loopCount || 0;
+    if (!state.flags.remembersLoop || lc <= 0) return "";
+    return `Amanda has done this before. Loop ${lc}.`;
+  }
+
+  function rulesStatus(){
+    const lr = state.flags.learnedRules || {};
+    const mark = (id) => (lr[id] ? "✓" : "·");
+    return `Rules: R1${mark("R1")} R2${mark("R2")} R3${mark("R3")} R5${mark("R5")} R7${mark("R7")}`;
+  }
+
+  function hasLearned(ruleId){
+    return !!(state.flags.learnedRules && state.flags.learnedRules[ruleId] === true);
+  }
+
+  function hasAllRequiredRules(){
+    return hasLearned("R1") && hasLearned("R2") && hasLearned("R3") && hasLearned("R5") && hasLearned("R7");
+  }
+
+  function resetRunPreserveMemory(){
+    const mem = {
+      loopCount: state.flags.loopCount || 0,
+      remembersLoop: !!state.flags.remembersLoop,
+      learnedRules: state.flags.learnedRules || {}
+    };
+
+    state.trust = 0;
+    state.normalcy = 0;
+    state.unease = 0;
+    state.inv = new Set();
+    state.inv.add("Logbook");
+    state.clues = [];
+
+    state.flags = {
+      gotPliers: true,
+      breakerReset: false,
+      code8139: false,
+      gotBoltCutters: false,
+      gotBucket: false,
+      gotWellKey: false,
+      gotRadio: false,
+      deliveredWater: false,
+      houseRulesStated: false,
+      logStarted: false,
+      continuitySlipNoted: false,
+      townWarningTakenSeriously: false,
+      ruleSpoken: false,
+      radioConstraintMode: false,
+      radioWord: "",
+      repeatTestDone: false,
+      procedureMode: false,
+      usedMethodNotForce: false,
+      loopCount: mem.loopCount,
+      remembersLoop: mem.remembersLoop,
+      learnedRules: mem.learnedRules
+    };
+  }
+
+  let twTimer = null;
+  function typewrite(el, html){
+    if (twTimer) { clearInterval(twTimer); twTimer = null; }
+    el.innerHTML = "";
+    const chunks = html.split(/(<[^>]+>)/g).filter(Boolean);
+    let i = 0;
+    twTimer = setInterval(() => {
+      el.innerHTML += chunks[i] || "";
+      i += 1;
+      if (i >= chunks.length) { clearInterval(twTimer); twTimer = null; }
+    }, 18);
+  }
+
+  function renderInv(){
+    const inv = $("invList");
+    inv.innerHTML = "";
+    const items = Array.from(state.inv.values()).sort();
+    if (!items.length){
+      const t = document.createElement("span");
+      t.className = "tag";
+      t.textContent = "Empty";
+      inv.appendChild(t);
+      return;
+    }
+    items.forEach((it) => {
+      const tag = document.createElement("span");
+      tag.className = "tag ok";
+      tag.textContent = it;
+      inv.appendChild(tag);
+    });
+  }
+
+  function renderJournal(){
+    const j = $("journal");
+    j.innerHTML = "";
+    if (!state.clues.length){
+      j.innerHTML = '<div class="item">No clues logged yet.</div>';
+      return;
+    }
+    const last = state.clues.slice(-8);
+    last.forEach((c) => {
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = "<b>" + escapeHtml(c.k) + "</b><div>" + escapeHtml(c.v) + "</div>";
+      j.appendChild(div);
+    });
+  }
+
+  function renderChoices(choices){
+    const row = $("choiceRow");
+    row.innerHTML = "";
+    choices.forEach((c) => {
+      const btn = document.createElement("button");
+      btn.className = "btn primary choice";
+      btn.textContent = c.t;
+      btn.onclick = () => advance(c);
+      row.appendChild(btn);
+    });
+  }
+
+  function render(){
+    const b = beats[state.beat];
+    $("beatPill").textContent = "Beat " + state.beat;
+    $("locPill").textContent = b.loc;
+    state.time = b.time;
+    $("timeVal").textContent = state.time;
+    $("trustVal").textContent = String(state.trust);
+    $("normVal").textContent = String(state.normalcy);
+    $("uneaseVal").textContent = String(state.unease);
+    $("sceneTitle").textContent = b.title;
+    const hint = b.hint || "";
+    const rs = rulesStatus();
+    $("hintText").textContent = hint ? (hint + " " + rs) : rs;
+
+    if ($("devOut")){
+      if (!state.showDev) {
+        $("devOut").textContent = "";
+      } else {
+        const lr = state.flags.learnedRules || {};
+        const learned = Object.keys(lr).filter(k => lr[k]).sort().join(", ") || "(none)";
+        $("devOut").textContent =
+          "beat: " + state.beat + "\n" +
+          "trust: " + state.trust + "\n" +
+          "normalcy: " + state.normalcy + "\n" +
+          "unease: " + state.unease + "\n" +
+          "loopCount: " + (state.flags.loopCount || 0) + "\n" +
+          "remembersLoop: " + (!!state.flags.remembersLoop) + "\n" +
+          "learnedRules: " + learned;
+      }
+    }
+
+    const blocks = [];
+    const mem = memoryPrefix();
+    if (mem) blocks.push("<p><i>" + escapeHtml(mem) + "</i></p>");
+    b.text.forEach((p) => blocks.push("<p>" + escapeHtml(p) + "</p>"));
+    if (state.showNotes && b.notes && b.notes.length){
+      const n = b.notes.map(escapeHtml).join("<br>");
+      blocks.push('<div class="thoughts">' + n + "</div>");
+    }
+    const el = $("sceneText");
+    if (!state.typewriter) el.innerHTML = blocks.join("");
+    else typewrite(el, blocks.join(""));
+
+    let ch = b.choices || [];
+    if (state.beat === "1.1" && state.flags.remembersLoop && (state.flags.loopCount || 0) > 0){
+      ch = ch.slice();
+      ch.push({
+        t: "Record the porch light and curtains in the logbook.",
+        next: "1.2",
+        fx: (s)=>{ s.normalcy += 1; s.clues.push({k:"Continuity", v:"Porch light on in daylight. Curtains drawn with gaps."}); }
+      });
+    }
+
+    renderChoices(ch);
+    renderInv();
+    renderJournal();
+  }
+
+  function advance(choice){
+    if (typeof choice.fx === "function") choice.fx(state);
+    let nxt = choice.next;
+    if (typeof nxt === "function") nxt = nxt(state);
+    if (!nxt) { render(); return; }
+    state.beat = nxt;
+    render();
+  }
+
+  const SAVE_KEY = "fixing_house_beat1_save_v1";
+  function save(){
+    const payload = {
+      beat: state.beat, showNotes: state.showNotes, typewriter: state.typewriter,
+      trust: state.trust, normalcy: state.normalcy, unease: state.unease, time: state.time,
+      inv: Array.from(state.inv.values()), clues: state.clues, flags: state.flags
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+  }
+  function load(){
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const p = JSON.parse(raw);
+    state.beat = p.beat || "1.1";
+    state.showNotes = !!p.showNotes;
+    state.typewriter = p.typewriter !== false;
+    state.trust = Number(p.trust || 0);
+    state.normalcy = Number(p.normalcy || 0);
+    state.unease = Number(p.unease || 0);
+    state.time = p.time || "Late afternoon";
+    state.inv = new Set(p.inv || []);
+    state.clues = Array.isArray(p.clues) ? p.clues : [];
+    state.flags = p.flags || state.flags;
+    return true;
+  }
+  function resetSave(){ localStorage.removeItem(SAVE_KEY); }
+
+  function flash(msg){
+    const h = $("hintText");
+    const old = h.textContent;
+    h.textContent = msg;
+    setTimeout(()=>{ h.textContent = old; }, 900);
+  }
+
+  $("btnToggleNotes").onclick = () => {
+    state.showNotes = !state.showNotes;
+    $("btnToggleNotes").textContent = "Actor notes: " + (state.showNotes ? "on" : "off");
+    render();
+  };
+  $("btnToggleType").onclick = () => {
+    state.typewriter = !state.typewriter;
+    $("btnToggleType").textContent = "Typewriter: " + (state.typewriter ? "on" : "off");
+    render();
+  };
+  $("btnDev").onclick = () => {
+    state.showDev = !state.showDev;
+    $("btnDev").textContent = "Dev panel: " + (state.showDev ? "on" : "off");
+    render();
+  };
+  $("btnSave").onclick = () => { save(); flash("Saved."); };
+  $("btnLoad").onclick = () => { flash(load() ? "Loaded." : "No save found."); render(); };
+  $("btnReset").onclick = () => { resetSave(); flash("Save reset."); };
+  $("btnNew").onclick = () => { resetSave(); load(); state.beat="1.1"; state.trust=0; state.normalcy=0; state.unease=0; state.inv=new Set(); state.inv.add("Logbook"); state.clues=[]; state.flags.gotPliers=true; render(); };
+
+  $("btnBeatReplay").onclick = () => { render(); flash("Replayed."); };
+  $("btnBeatSaveStop").onclick = () => { save(); flash("Saved. Close the tab to stop."); };
+
+  const loaded = load();
+  if (!loaded) state.inv.add("Logbook");
+  validateBeats();
+  validateRuleWrites();
+  $("btnToggleNotes").textContent = "Actor notes: " + (state.showNotes ? "on" : "off");
+  $("btnToggleType").textContent = "Typewriter: " + (state.typewriter ? "on" : "off");
+  $("btnDev").textContent = "Dev panel: " + (state.showDev ? "on" : "off");
+  render();
+})();
+</script>
 </body>
 </html>
