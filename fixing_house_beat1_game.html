@@ -1529,13 +1529,41 @@
   }
 
   const SAVE_KEY = "fixing_house_beat1_save_v1";
-  const SAVE_VERSION = 2;
+  const SAVE_VERSION = "1.0.2";
+
+  function applyNewRunState(){
+    state.beat = "1.1";
+    state.sub = null;
+    state.trust = 0;
+    state.normalcy = 0;
+    state.unease = 0;
+    state.inv = new Set();
+    state.inv.add("Logbook");
+    state.clues = [];
+    if (!state.flags || typeof state.flags !== "object") state.flags = {};
+    state.flags.gotPliers = true;
+    state.flags.jokeUsed = false;
+    state.flags.lastCutBeat = "";
+    state.flags.pendingHold = "";
+  }
+
   function save(){
+    const savedState = {
+      beat: state.beat,
+      sub: state.sub,
+      showNotes: state.showNotes,
+      typewriter: state.typewriter,
+      trust: state.trust,
+      normalcy: state.normalcy,
+      unease: state.unease,
+      time: state.time,
+      inv: Array.from(state.inv.values()),
+      clues: state.clues,
+      flags: state.flags
+    };
     const payload = {
       version: SAVE_VERSION,
-      beat: state.beat, sub: state.sub, showNotes: state.showNotes, typewriter: state.typewriter,
-      trust: state.trust, normalcy: state.normalcy, unease: state.unease, time: state.time,
-      inv: Array.from(state.inv.values()), clues: state.clues, flags: state.flags
+      payload: savedState
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
   }
@@ -1544,31 +1572,35 @@
     if (!raw) return false;
     try {
       const p = JSON.parse(raw);
-      const version = Number(p.version || 0);
+      if (!p || p.version !== SAVE_VERSION || !p.payload || typeof p.payload !== "object") {
+        console.warn("Save version mismatch. Expected " + SAVE_VERSION + ". Resetting run.");
+        return false;
+      }
+      const savedState = p.payload;
 
-      state.beat = p.beat || "1.1";
+      state.beat = savedState.beat || "1.1";
       if (!Object.prototype.hasOwnProperty.call(beats, state.beat)) {
         state.beat = "1.1";
       }
 
-      state.sub = (typeof p.sub === "string") ? p.sub : null;
+      state.sub = (typeof savedState.sub === "string") ? savedState.sub : null;
       const beatObj = beats[state.beat];
       if (!beatObj || !beatObj.steps || typeof beatObj.steps !== "object" || !Object.prototype.hasOwnProperty.call(beatObj.steps, state.sub)) {
         state.sub = null;
       }
 
-      state.showNotes = !!p.showNotes;
-      state.typewriter = p.typewriter !== false;
-      state.trust = Number(p.trust || 0);
-      state.normalcy = Number(p.normalcy || 0);
-      state.unease = Number(p.unease || 0);
-      state.time = p.time || "Late afternoon";
+      state.showNotes = !!savedState.showNotes;
+      state.typewriter = savedState.typewriter !== false;
+      state.trust = Number(savedState.trust || 0);
+      state.normalcy = Number(savedState.normalcy || 0);
+      state.unease = Number(savedState.unease || 0);
+      state.time = savedState.time || "Late afternoon";
 
-      state.inv = new Set(Array.isArray(p.inv) ? p.inv : []);
+      state.inv = new Set(Array.isArray(savedState.inv) ? savedState.inv : []);
       state.inv.add("Logbook");
-      state.clues = Array.isArray(p.clues) ? p.clues : [];
+      state.clues = Array.isArray(savedState.clues) ? savedState.clues : [];
 
-      state.flags = (p.flags && typeof p.flags === "object") ? p.flags : {};
+      state.flags = (savedState.flags && typeof savedState.flags === "object") ? savedState.flags : {};
       if (typeof state.flags.loopCount !== "number") state.flags.loopCount = 0;
       if (typeof state.flags.remembersLoop !== "boolean") state.flags.remembersLoop = false;
       if (!state.flags.learnedRules || typeof state.flags.learnedRules !== "object") state.flags.learnedRules = {};
@@ -1576,14 +1608,6 @@
       if (typeof state.flags.pendingHold !== "string") state.flags.pendingHold = "";
       if (typeof state.flags.jokeUsed !== "boolean") state.flags.jokeUsed = false;
       if (typeof state.flags.microEvidence !== "boolean") state.flags.microEvidence = false;
-
-      if (version < SAVE_VERSION) {
-        if (!Object.prototype.hasOwnProperty.call(beats, state.beat)) state.beat = "1.1";
-        const b = beats[state.beat];
-        if (!b || !b.steps || typeof b.steps !== "object" || !Object.prototype.hasOwnProperty.call(b.steps, state.sub)) {
-          state.sub = null;
-        }
-      }
 
       return true;
     } catch (_e) {
@@ -1601,19 +1625,7 @@
 
   function startNewRun(){
     resetSave();
-    load();
-    state.beat = "1.1";
-    state.sub = null;
-    state.trust = 0;
-    state.normalcy = 0;
-    state.unease = 0;
-    state.inv = new Set();
-    state.inv.add("Logbook");
-    state.clues = [];
-    state.flags.gotPliers = true;
-    state.flags.jokeUsed = false;
-    state.flags.lastCutBeat = "";
-    state.flags.pendingHold = "";
+    applyNewRunState();
     render();
   }
 
@@ -1697,7 +1709,12 @@
     render();
   };
   $("btnSave").onclick = () => { save(); flash("Saved."); };
-  $("btnLoad").onclick = () => { flash(load() ? "Loaded." : "No save found."); render(); };
+  $("btnLoad").onclick = () => {
+    const ok = load();
+    if (!ok) applyNewRunState();
+    flash(ok ? "Loaded." : "No compatible save found.");
+    render();
+  };
   $("btnReset").onclick = () => { resetSave(); flash("Save reset."); };
   $("btnNew").onclick = () => { startNewRun(); };
 
@@ -1705,7 +1722,7 @@
   $("btnBeatSaveStop").onclick = () => { save(); flash("Saved. Close the tab to stop."); };
 
   const loaded = load();
-  if (!loaded) state.inv.add("Logbook");
+  if (!loaded) applyNewRunState();
   validateBeats();
   validateRuleWrites();
   $("btnToggleNotes").textContent = "Actor notes: " + (state.showNotes ? "on" : "off");
