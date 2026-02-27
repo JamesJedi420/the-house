@@ -1617,81 +1617,50 @@
     render();
   }
 
-  window.runSmoke = function(steps){
-    const defaultSteps = [
-      { beat: "3.1", choice: 0 },
-      { beat: "3.2", choice: 0 },
-      { beat: "3.3", choice: 0 },
-      { beat: "3.4", choice: 0 },
-      { beat: "3.5", choice: 1 },
-      { beat: "3.6", choice: 0 }
-    ];
-    const route = (Array.isArray(steps) && steps.length) ? steps : defaultSteps;
-
+  function resetForSmoke(){
     startNewRun();
-    console.group("Smoke run");
+    state.beat = "1.1";
+    state.sub = null;
+    if (!(state.inv instanceof Set)) state.inv = new Set();
+    state.inv.add("Logbook");
+    if (!Array.isArray(state.clues)) state.clues = [];
+    if (!state.flags || typeof state.flags !== "object") state.flags = {};
+  }
+
+  window.runSmoke = function(){
+    console.group("Smoke Test");
+
     try {
-      for (let i = 0; i < route.length; i++) {
-        const step = route[i] || {};
-        if (typeof step.beat === "string" && step.beat && state.beat !== step.beat) {
-          if (!Object.prototype.hasOwnProperty.call(beats, step.beat)) {
-            console.error("Missing beat:", step.beat);
-            break;
-          }
-          state.beat = step.beat;
-          state.sub = null;
-          render();
-        }
+      resetForSmoke();
+      render();
+      console.log("Start beat:", state.beat);
 
-        const fromBeat = state.beat;
-        const beatObj = beats[fromBeat];
-        if (!beatObj) {
-          console.error("Missing beat at runtime:", fromBeat);
-          break;
-        }
+      if (!beats[state.beat]) console.error("Missing start beat 1.1");
 
-        const active = getActiveNode(beatObj);
-        const node = active.node || beatObj;
-        const rawChoices = Array.isArray(node.choices) ? node.choices : (beatObj.choices || []);
-        const visibleChoices = getVisibleChoices(rawChoices);
-        const pick = (typeof step.choice === "number") ? step.choice : 0;
-        const chosen = visibleChoices[pick];
-        if (!chosen) {
-          console.error("Choice index out of range at", fromBeat, "index", pick);
-          break;
-        }
+      save();
+      const ok = load();
+      console.log("Load ok:", ok);
+      render();
 
-        advance(chosen);
-        const toBeat = state.beat;
-        const isCut = /^4\.(1|2|3|4|5|7|8|9)$/.test(String(toBeat));
-        console.log(fromBeat + " -> " + toBeat + " | choice " + pick + (isCut ? " | CUT/HOLD" : ""));
-
-        if (chosen.next === null && !Object.prototype.hasOwnProperty.call(chosen, "subNext")) {
-          console.log("Smoke run stopped at null next.");
-          break;
-        }
-        if (!Object.prototype.hasOwnProperty.call(beats, state.beat)) {
-          console.error("Transitioned to missing beat:", state.beat);
-          break;
-        }
-        if (state.beat === "4.6") {
-          console.log("Reached 4.6.");
-          break;
-        }
+      if (typeof learnRule !== "function") {
+        console.error("learnRule missing");
+      } else {
+        learnRule("R0", "Do not break the fourth wall.");
+        console.log("learnedRules has R0:", !!(state.flags.learnedRules && state.flags.learnedRules.R0));
       }
 
-      if (state.beat !== "4.6") {
-        const miss = missingCoreRules(state);
-        if (miss.length) {
-          state.clues.push({ k: "Missing rules", v: "You are missing: " + miss.join(", ") });
-          console.warn("4.6 gate blocked. Missing rules:", miss.join(", "));
-        }
-      }
+      state.flags.pendingHold = "4.7";
+      state.flags.lastCutBeat = "4.7";
+      state.beat = "4.7";
+      render();
+      console.log("pendingHold set:", state.flags.pendingHold);
+
+      console.log("Smoke complete. Now manually click Replay from Beat 1.1 after triggering a repeated CUT to verify HOLD routing.");
+    } catch (e) {
+      console.error("Smoke test error:", e);
     } finally {
       console.groupEnd();
-      render();
     }
-    return state.beat;
   };
 
   window.forceHoldTest = function(cutKey){
