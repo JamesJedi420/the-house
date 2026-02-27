@@ -135,6 +135,10 @@ Click Reset save.
 
 Refresh the page.
 
+### Common failure modes and fixes
+
+If you are testing HOLD, do not choose Save and stop on CUT. Choose Replay from Beat 1.1.
+
 ## Project Structure
 
 fixing_house_beat1_game.html main game file with embedded CSS and JS.
@@ -173,6 +177,7 @@ Prefer a local server while editing for faster refresh and cleaner debugging.
 - Act II choices increasingly reward controlled method, group movement, and repeatable checks over impulse.
 - CUT beats 4.1-4.5 and 4.7-4.8 are failure loops that reset to 1.1 and explicitly teach rules.
 - CUT loops are learning beats: each one records a specific rule card and advances long-run player knowledge.
+- HOLD (4.9) triggers only when the player repeats the same CUT twice and chooses Replay from Beat 1.1. Save and stop does not trigger HOLD.
 - Act III (beats 5.1-6.4) is procedural escalation where earlier learned rules are expected to be applied consistently.
 - Ending 4.6 is the only good ending.
 - Good-ending access is rule-gated and depends on learned rule coverage across R0, R1, R2, R3, R5, R6, and R7 as applicable.
