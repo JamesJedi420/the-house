@@ -65,6 +65,7 @@
         <div class="left">
           <span class="pill" id="beatPill">Beat 1.1</span>
           <span class="pill" id="locPill">Backroad</span>
+          <span class="pill" id="rulePill">Rules 0/7</span>
         </div>
         <div class="left">
           <button class="btn" id="btnToggleNotes">Actor notes: off</button>
@@ -122,6 +123,7 @@
 
   const state = {
     beat: "1.1",
+    sub: null,
     showNotes: false,
     showDev: false,
     typewriter: true,
@@ -150,17 +152,66 @@
       repeatTestDone: false,
       procedureMode: false,
       usedMethodNotForce: false,
+      jokeUsed: false,
+      microEvidence: false,
+      lastCutBeat: "",
+      pendingHold: "",
       loopCount: 0,
       remembersLoop: false,
       learnedRules: {}
     }
   };
 
+  const RULE_MAP = {
+    R0: "4.7",
+    R1: "4.3",
+    R2: "4.4",
+    R3: "4.1",
+    R5: "4.2",
+    R6: "4.8",
+    R7: "4.5"
+  };
+
+  /*
+    Example template for optional intra-beat steps (disabled by default):
+
+    "X.Y": {
+      title: "Beat with steps",
+      loc: "Somewhere",
+      time: "Late afternoon",
+      text: ["Fallback beat text."],
+      notes: ["Fallback beat note."],
+      hint: "Fallback beat hint.",
+      choices: [
+        { t: "Fallback choice A", next: "X.Z" },
+        { t: "Fallback choice B", next: null }
+      ],
+      startStep: "s1",
+      steps: {
+        s1: {
+          text: ["Step 1 text."],
+          choices: [
+            { t: "Advance within beat", subNext: "s2" },
+            { t: "Leave beat", next: "X.Z" }
+          ]
+        },
+        s2: {
+          text: ["Step 2 text."],
+          choices: [
+            { t: "End this beat", next: null },
+            { t: "Back to step 1", subNext: "s1" }
+          ]
+        }
+      }
+    }
+  */
+
   const beats = {
     "1.1": {
       title: "Backroad approach",
       loc: "Car, backroad",
       time: "Late afternoon",
+      startStep: "start",
       text: [
         "The backroad is quiet. Dry brush and pale grass pass in repeating patterns outside the windows.",
         "Amanda drives. Ashley sits in the passenger seat with a compact mirror in her palm.",
@@ -174,9 +225,61 @@
       ],
       choices: [
         { t: "Say nothing. Turn onto the dirt drive.", next: "1.2", fx: (s)=>{ s.unease += 1; } },
-        { t: "Joke to Ashley about Scott’s planning.", next: "1.2", fx: (s)=>{ s.trust += 1; s.normalcy += 1; } }
+        { t: "Joke to Ashley about Scott's planning.", showIf: (s)=> !s.flags.jokeUsed, subNext: "joke", fx: (s)=>{ s.flags.jokeUsed = true; s.trust += 1; s.normalcy += 1; } }
       ],
-      hint: "Your tone sets the baseline."
+      steps: {
+        start: {
+          text: [
+            "The backroad is quiet. Dry brush and pale grass pass in repeating patterns outside the windows.",
+            "Amanda drives. Ashley sits in the passenger seat with a compact mirror in her palm.",
+            "A van follows at a steady distance in the rearview mirror.",
+            "The road crests. A dirt drive branches off. Past a clearing, a two story house comes into view.",
+            "A porch light is on in daylight. Curtains are drawn with thin gaps leaking light."
+          ],
+          notes: [
+            "[AMANDA: Keep it friendly. Store details. Do not correct anyone out loud yet.]",
+            "[ASHLEY: Treat the light as welcome. Stay pleasant. Do not be the first to say it feels wrong.]"
+          ],
+          choices: [
+            { t: "Say nothing. Turn onto the dirt drive.", next: "1.2", fx: (s)=>{ s.unease += 1; } },
+            { t: "Joke to Ashley about Scott's planning.", showIf: (s)=> !s.flags.jokeUsed, subNext: "joke", fx: (s)=>{ s.flags.jokeUsed = true; s.trust += 1; s.normalcy += 1; } }
+          ]
+        },
+        joke: {
+          text: [
+            "Amanda says Scott planned this like a military operation and still forgot something obvious.",
+            "Ashley snorts once and turns toward the window so she can hide the smile.",
+            "The van keeps its distance behind them as if it heard the line and declined to react."
+          ],
+          choices: [
+            { t: "Continue", next: "1.2" },
+            { t: "Replay beat.", next: "1.1" }
+          ]
+        },
+        log: {
+          text: [
+            "Amanda checks the phone clock and writes the minute in the logbook without saying why.",
+            "She notes the porch light is on in full daylight and the curtains are drawn with narrow gaps.",
+            "Ashley watches the writing, then looks back to the road and says nothing."
+          ],
+          choices: [
+            { t: "Proceed to the drive without commenting.", next: "1.2" },
+            { id: "delay10", t: "Delay and keep the car stopped for ten seconds.", next: "4.8" }
+          ]
+        },
+        micro: {
+          text: [
+            "Amanda clicks her seatbelt loose and back into place, then leaves her hands on the wheel.",
+            "Ashley glances over, adjusts the mirror, and keeps talking like nothing changed.",
+            "Amanda watches for a forced correction in the moment and does not see one yet."
+          ],
+          choices: [
+            { t: "Proceed to the drive without commenting.", next: "1.2" },
+            { t: "Escalate and tell Ashley you think this is a set.", next: "4.7" }
+          ]
+        }
+      },
+      hint: "Reminder: Your tone sets the baseline."
     },
     "1.2": {
       title: "Arrival and unloading",
@@ -191,10 +294,26 @@
         "[AMANDA: Keep a clear lane to the door. Make Scott carry something heavy.]"
       ],
       choices: [
-        { t: "Stage boxes on the porch.", next: "1.3", fx: (s)=>{ s.normalcy += 1; s.trust += 1; } },
-        { t: "Wait for Brian before entering.", next: "1.3", fx: (s)=>{ s.unease += 1; s.trust += 1; } }
+        { t: "Stage boxes on the porch.", next: "1.25", fx: (s)=>{ s.normalcy += 1; s.trust += 1; } },
+        { t: "Wait for Brian before entering.", next: "1.25", fx: (s)=>{ s.unease += 1; s.trust += 1; } }
       ],
-      hint: "The porch becomes a landmark."
+      hint: "Reminder: The porch becomes a landmark."
+    },
+    "1.25": {
+      title: "Porch continuity check",
+      loc: "Porch",
+      time: "Late afternoon",
+      text: [
+        "Amanda pauses at the porch rail and notices the same continuity detail: dust unmoved, porch light on, curtain gap unchanged.",
+        "If her earlier micro-deviation gave her confidence, she stays calm and writes it down in the logbook.",
+        "If it did not, she feels a sharp urge to call it out to Scott in front of everyone.",
+        "She keeps her voice low and decides whether to log the detail or force a confrontation."
+      ],
+      choices: [
+        { t: "Log it and keep moving.", next: (s)=> "1.3", fx: (s)=>{ s.normalcy += 1; s.clues.push({k:"Porch continuity", v:"Amanda confirmed dust, porch light, and curtain gap continuity at the porch."}); } },
+        { t: "Confront Scott about it right now.", next: (s)=> (s.flags.remembersLoop ? "4.7" : "1.3"), fx: (s)=>{ s.unease += 1; } }
+      ],
+      hint: "Reminder: Small checks can prevent bad escalations."
     },
     "1.3": {
       title: "Brian arrives. First entry.",
@@ -212,7 +331,7 @@
         { t: "Follow the backpacks upstairs instruction.", next: "1.4", fx: (s)=>{ s.normalcy += 1; s.trust += 1; } },
         { t: "Pause and scan the hall and stairs.", next: "1.4", fx: (s)=>{ s.unease += 1; s.trust += 1; } }
       ],
-      hint: "The entry table repeats."
+      hint: "Reminder: The entry table repeats."
     },
     "1.4": {
       title: "Rooms claimed. Task assigned.",
@@ -230,7 +349,7 @@
         { t: "Take the key and tell Scott to carry heavy boxes while you search.", next: "1.5", fx: (s)=>{ s.trust += 1; s.normalcy += 1; } },
         { t: "Take the key and leave without comment.", next: "1.5", fx: (s)=>{ s.unease += 1; } }
       ],
-      hint: "Delegation changes relationships."
+      hint: "Reminder: Delegation changes relationships."
     },
     "1.5": {
       title: "Study tableau. First denied door.",
@@ -249,7 +368,7 @@
         { t: "Return and demand the correct key.", next: "1.6", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'1942 letter', v:'A discharge notice is filed in the study.'}); } },
         { t: "Waste time trying doors again.", next: "1.6", fx: (s)=>{ s.unease += 2; s.clues.push({k:'1942 letter', v:'A discharge notice is filed in the study.'}); } }
       ],
-      hint: "Prepared rooms suggest intent."
+      hint: "Reminder: Prepared rooms suggest intent."
     },
     "1.6": {
       title: "Storage, breaker, tape deck",
@@ -266,7 +385,7 @@
         { t: "Return the tape deck and keep Scott carrying boxes.", next: "1.7", fx: (s)=>{ s.normalcy += 1; s.flags.breakerReset = true; s.inv.add('Tape deck'); s.inv.add('Speakers'); } },
         { t: "Ignore boxes and focus on testing sound.", next: "1.7", fx: (s)=>{ s.unease += 1; s.flags.breakerReset = true; s.inv.add('Tape deck'); s.inv.add('Speakers'); } }
       ],
-      hint: "Working sound stabilizes the group."
+      hint: "Reminder: Working sound stabilizes the group."
     },
     "1.7": {
       title: "No water. Yard loop.",
@@ -283,7 +402,7 @@
         { t: "Take the bucket. Head uphill to the well.", next: "1.8", fx: (s)=>{ s.flags.code8139=true; s.flags.gotBoltCutters=true; s.flags.gotBucket=true; s.inv.add('Pliers'); s.inv.add('Bolt cutters'); s.inv.add('Bucket'); s.clues.push({k:'8139', v:'Code from the cage note.'}); s.clues.push({k:'1944 clipping', v:'A missing teen story folded in the shed.'}); } },
         { t: "Bring the bucket back first. Risk delay.", next: "1.8", fx: (s)=>{ s.flags.code8139=true; s.flags.gotBoltCutters=true; s.flags.gotBucket=true; s.unease += 1; s.inv.add('Pliers'); s.inv.add('Bolt cutters'); s.inv.add('Bucket'); s.clues.push({k:'8139', v:'Code from the cage note.'}); s.clues.push({k:'1944 clipping', v:'A missing teen story folded in the shed.'}); } }
       ],
-      hint: "Outside is exposed."
+      hint: "Reminder: Outside is exposed."
     },
     "1.8": {
       title: "Well key. Radio payoff.",
@@ -298,7 +417,7 @@
       ],
       notes: ["[AMANDA: Deliver function first. Do not announce the watcher yet.]"],
       choices: [
-        { t: "Continue.", next: "2.1", fx: (s)=>{ 
+        { t: "Continue", next: "2.1", fx: (s)=>{ 
             s.flags.gotWellKey=true; 
             s.flags.gotRadio=true; 
             s.flags.deliveredWater=true; 
@@ -309,132 +428,129 @@
             s.clues.push({k:'Watcher', v:'A silhouette at the tree line near the well.'}); 
           } 
         },
-        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{} }
+        { t: "Proceed inside with the group.", next: "2.1", fx: (s)=>{} }
       ],
-      hint: "Beat 1 ends with unstable sound."
+      hint: "Reminder: Beat 1 ends with unstable sound."
     },
 
     "2.1": {
-      title: "Inventory and the decision",
-      loc: "Living room",
+      title: "No water at the sink",
+      loc: "Kitchen and living room",
       time: "Dusk",
       text: [
-        "The radio hisses with static near the front window. The tape deck power light stays on, but the room still feels quiet between bursts of noise.",
-        "Boxes are half-open. Packing paper is piled near the couch. Dust has settled into the corners of the entryway.",
-        "A quick check makes it obvious what’s missing: ice, real food, bottled water, and spare batteries.",
-        "Brian’s sedan is still clear and already facing out. The wagon and the van are boxed in close to the porch."
+        "Amanda turns the kitchen faucet and gets only an empty rattle from the line.",
+        "Scott shrugs it off with a friendly smile and says old houses always act up on the first night.",
+        "Ashley sets her glass down and watches Amanda instead of arguing.",
+        "Amanda takes the practical task: find a working water plan before dark settles in."
       ],
       notes: [
-        "[AMANDA: Keep it practical. One car leaves, one car stays. Do not let this become an argument about blame.]"
+        "[AMANDA: Keep it practical. Assign the fix, then verify every step.]"
       ],
       choices: [
-        { t: "Send Brian with a short list and a time limit.", next: "2.2", fx: (s)=>{ s.normalcy += 1; s.trust += 1; } },
-        { t: "Walk Brian to the car and watch the drive until he disappears.", next: "2.2", fx: (s)=>{ s.unease += 1; s.trust += 1; } }
+        { t: "Check outside routes to water and keep the group informed.", next: "2.2", fx: (s)=>{ s.normalcy += 1; } },
+        { t: "Push Scott for a fast answer before moving.", next: "2.2", fx: (s)=>{ s.unease += 1; } }
       ],
-      hint: "A plan reduces friction, not risk."
+      hint: "Reminder: Assign practical fixes before fear sets the agenda."
     },
 
     "2.2": {
-      title: "After the engine fades",
-      loc: "Entryway and living room",
+      title: "Shed line and yard scan",
+      loc: "Side yard",
       time: "Dusk",
       text: [
-        "Brian’s sedan pulls down the drive. Dust lifts behind it and then settles into the weeds.",
-        "The porch light looks brighter now that the sky has dimmed. The curtains still stay closed.",
-        "Inside, the radio catches a voice fragment for a second, then returns to static.",
-        "A floorboard creaks upstairs. Ashley stops moving and looks toward the staircase."
+        "The shed door is tied shut with rope that was knotted in a hurry but pulled tight.",
+        "Amanda scans the yard in a slow circle and marks what feels placed versus what feels used.",
+        "A small cage sits half hidden in brush near the fence line.",
+        "A damp note near the cage points to a code, but not to what should be opened first."
       ],
       notes: [
-        "[AMANDA: Keep Ashley steady. If you chase every sound, you teach the house what works.]"
+        "[AMANDA: Scan first. Touch second. Log before assumptions.]"
       ],
       choices: [
-        { t: "Go upstairs with Ashley and check the hall together.", next: "2.3", fx: (s)=>{ s.trust += 1; s.unease += 1; } },
-        { t: "Keep Ashley downstairs. Listen for a repeat before moving.", next: "2.3", fx: (s)=>{ s.normalcy += 1; s.unease += 1; } }
+        { t: "Follow the code trail carefully and keep notes.", next: "2.3", fx: (s)=>{ s.normalcy += 1; s.clues.push({k:"Yard note", v:"A damp yard note implied a code linked to stored tools."}); } },
+        { t: "Cut the rope first and sort it out after.", next: "2.3", fx: (s)=>{ s.unease += 1; } }
       ],
-      hint: "Movement creates information and mistakes."
+      hint: "Reminder: Scan the yard before acting on a single object."
     },
 
     "2.3": {
-      title: "A small failure",
-      loc: "Kitchen hall",
+      title: "Code, cutters, and procedure",
+      loc: "Shed threshold",
       time: "Dusk",
       text: [
-        "The tape deck hum dips and comes back, then dips again. The red light stays on, but the speakers pop once and go quiet.",
-        "The breaker cover labels are easy to read in the hall. One switch sits slightly off alignment compared to the others.",
-        "The entry table flashlight is still centered exactly as before. No one admits they noticed.",
-        "The radio’s static changes texture when someone steps closer to the front window."
+        "Amanda tests the code once and gets the lockbox open without forcing the latch.",
+        "Inside are bolt cutters and a bucket staged like they were expected to be found tonight.",
+        "She says the code out loud, then repeats it with Ashley listening so the record is shared.",
+        "Before moving on, Amanda repeats one quick test to confirm it was the code and not luck."
       ],
       notes: [
-        "[AMANDA: Fix one thing. Do not fix everything. If you fix everything, you become the only system that matters.]"
+        "[AMANDA: Log and repeat-test before escalation.]"
       ],
       choices: [
-        { t: "Flip the breaker back into alignment and test the tape deck again.", next: "2.4", fx: (s)=>{ s.normalcy += 1; s.unease += 1; s.clues.push({k:'Breaker drift', v:'One labeled switch was slightly out of alignment.'}); } },
-        { t: "Leave it alone for now and focus on batteries and light.", next: "2.4", fx: (s)=>{ s.unease += 1; } }
+        { t: "Log the code and tools before leaving the shed.", next: "2.4", fx: (s)=>{ s.normalcy += 1; s.clues.push({k:"Tool cache", v:"Code entry opened a lockbox containing bolt cutters and a bucket."}); } },
+        { t: "Skip logging and move straight to the well.", next: "2.4", fx: (s)=>{ s.unease += 1; } }
       ],
-      hint: "Systems that fail once tend to fail again."
+      hint: "Reminder: Repeat-test and record before you escalate."
     },
 
     "2.4": {
-      title: "Searching for batteries",
-      loc: "Study and utility closet",
+      title: "Well edge",
+      loc: "Well and tree line",
       time: "Dusk",
       text: [
-        "The study still looks staged: blank notepad aligned, pen aligned, lamp cord coiled. The LIGHTS box is where it was.",
-        "The small closet near the kitchen sticks when it opens. The air inside is colder and smells like cardboard and metal.",
-        "When the door swings shut, the knob turns but the latch doesn’t pull back cleanly. It holds for a beat too long.",
-        "A thin plastic card in your wallet is stiff enough to reach the latch edge if you slide it into the gap."
+        "The well rope runs smooth for half a pull, then drags like it caught on grit.",
+        "Amanda brings the bucket up slow and finds a small old key resting against the wet wood slats.",
+        "The air changes near the trees and a silhouette stands between trunks for one beat before stillness returns.",
+        "No one speaks first, and Amanda keeps the bucket in both hands until the moment passes."
       ],
       notes: [
-        "[AMANDA: Do not panic. Do not make noise that turns this into a crisis. Treat it like a mechanical problem.]"
+        "[AMANDA: Stay with the task. Do not split from the group without cause.]"
       ],
       choices: [
-        { t: "Search the closet anyway and use the card if it sticks again.", next: "2.5", fx: (s)=>{ s.unease += 1; s.inv.add('Wallet card'); s.clues.push({k:'Sticky latch', v:'A closet latch catches even when the knob turns.'}); } },
-        { t: "Stay out of the closet. Take what you can from the LIGHTS box and leave.", next: "2.5", fx: (s)=>{ s.normalcy += 1; s.clues.push({k:'LIGHTS box', v:'Spare bulbs and fuses are staged in the study.'}); } }
+        { t: "Carry the bucket and key back inside together.", next: "2.5", fx: (s)=>{ s.normalcy += 1; s.inv.add("Well key"); s.clues.push({k:"Well key", v:"A small key came up in the well bucket."}); } },
+        { t: "Walk closer to the tree line alone.", next: (s)=> (s.flags.loopCount > 0 ? "4.3" : "2.5"), fx: (s)=>{ s.unease += 1; } }
       ],
-      hint: "If a door misbehaves once, assume it will misbehave again."
+      hint: "Reminder: Do not split up when the environment changes quietly."
     },
 
     "2.5": {
-      title: "What to tell Ashley",
-      loc: "Living room",
+      title: "Water in hand",
+      loc: "Kitchen and living room",
       time: "Dusk",
       text: [
-        "Ashley sits near the couch with her water glass. She keeps looking toward the window and then away again.",
-        "The radio spits a clearer fragment for a second. It is still not long enough to understand. Static resumes.",
-        "The bucket left a dotted drip trail across the kitchen floor that no one has cleaned yet.",
-        "Ashley asks if you saw anything near the well, and her voice stays casual in a way that does not match her face."
+        "Amanda pours fresh water and hands Ashley the first glass without comment.",
+        "Ashley drinks too fast, then slows down and watches Amanda for a cue.",
+        "The room relaxes for a minute as if function has returned to normal.",
+        "Amanda decides whether to mention the silhouette now or hold it until there is a second data point."
       ],
       notes: [
-        "[AMANDA: If you tell her, you change her. If you don’t, you change yourself. Pick the option you can live with.]"
+        "[AMANDA: Tell only what helps the next decision.]"
       ],
       choices: [
-        { t: "Tell her about the silhouette at the tree line.", next: "2.6", fx: (s)=>{ s.trust += 2; s.unease += 1; } },
-        { t: "Keep it private. Say you saw nothing useful.", next: "2.6", fx: (s)=>{ s.normalcy += 1; s.unease += 1; } }
+        { t: "Tell Ashley exactly what you saw at the trees.", next: "2.6", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:"Tree line silhouette", v:"Amanda reported a still silhouette near the tree line by the well."}); } },
+        { t: "Keep the silhouette private for now and focus on tasks.", next: "2.6", fx: (s)=>{ s.normalcy += 1; } }
       ],
-      hint: "Secrecy can be protection or isolation."
+      hint: "Reminder: Share information when it improves coordination."
     },
 
     "2.6": {
-      title: "Waiting for headlights",
-      loc: "Living room and front window",
+      title: "Under-stairs signal",
+      loc: "Under-stairs closet",
       time: "Night",
       text: [
-        "Outside, the porch light holds steady. The road beyond the clearing is black.",
-        "The radio’s static thins for a moment. A voice lands for a full second, then disappears again.",
-        "The tape deck stays powered but refuses to feel reliable. The house keeps its own rhythm.",
-        "You wait for headlights on the drive and try not to turn waiting into a ritual."
+        "The old key opens the under-stairs closet and Amanda finds a portable radio with fresh batteries.",
+        "The signal is intermittent, not dead, and static shifts as people move in the room.",
+        "One clear word breaks through once and then vanishes back into hiss.",
+        "Amanda has to decide whether that word is a constraint to respect or a message to chase."
       ],
       notes: [
-        "[AMANDA: Stay literal. Do not invent a pattern you can’t prove. Keep the room organized so you can move fast.]"
+        "[AMANDA: Treat clear words as constraints, not instructions.]"
       ],
       choices: [
-        { t: "Continue.", next: "2.7", fx: (s)=>{ 
-            s.clues.push({k:'Radio fragment', v:'A longer voice fragment broke through, then fell back to static.'}); 
-          } 
-        },
-        { t: "Replay from 2.1.", next: "2.1", fx: (s)=>{} }
+        { t: "Treat the radio word as a message.", next: (s)=> (s.flags.remembersLoop || (s.flags.loopCount || 0) > 0 ? "4.2" : "3.1"), fx: (s)=>{ s.unease += 1; } },
+        { t: "Treat the radio word as a constraint and keep procedures tight.", next: "3.1", fx: (s)=>{ s.normalcy += 1; s.clues.push({k:"Radio constraint", v:"Amanda treated the clear radio word as a constraint condition."}); } }
       ],
-      hint: "Beat 2 ends before the return."
+      hint: "Reminder: A clear radio word is a boundary to obey, not a story to follow."
     },
 
     "2.7": {
@@ -491,105 +607,105 @@
     },
 
     "3.1": {
-      title: "Headlights and bags",
+      title: "Brian returns",
       loc: "Entryway and living room",
       time: "Night",
       text: [
-        "Headlights sweep the clearing and slide across the porch rail. Gravel crunches and an engine idles before shutting off.",
-        "Brian steps in carrying a plastic bag and a small cardboard box. He sets them on the entry table without moving the centered flashlight.",
-        "Ice clinks in the bag. Bottled water knocks together. The cardboard box is batteries and a small roll of tape.",
-        "Brian says the store clerk asked questions about the house before selling him anything, then laughed immediately like it was a routine."
+        "Headlights sweep across the porch rail and Brian comes in carrying ice, bottled water, and a box of batteries.",
+        "He sets everything down and says the clerk gave a quiet warning about the house, then tried to play it off.",
+        "Scott keeps it friendly and says they should treat the warning as data until proven otherwise.",
+        "Ashley nods and asks Amanda what to do first now that supplies are in hand."
       ],
       choices: [
-        { t: "Ask Brian exactly what the clerk said, word for word.", next: "3.2", fx: (s)=>{ s.trust += 1; s.unease += 1; s.inv.add('Ice'); s.inv.add('Bottled water'); s.inv.add('Batteries'); s.inv.add('Tape'); } },
-        { t: "Tell Brian to sit and drink water first, then explain.", next: "3.2", fx: (s)=>{ s.trust += 1; s.normalcy += 1; s.inv.add('Ice'); s.inv.add('Bottled water'); s.inv.add('Batteries'); s.inv.add('Tape'); } }
+        { t: "Get the exact warning details before moving on.", next: "3.2", fx: (s)=>{ s.trust += 1; s.inv.add("Ice"); s.inv.add("Bottled water"); s.inv.add("Batteries"); } },
+        { t: "Stabilize the room first, then hear Brian out.", next: "3.2", fx: (s)=>{ s.normalcy += 1; s.inv.add("Ice"); s.inv.add("Bottled water"); s.inv.add("Batteries"); } }
       ],
-      hint: "Rule: Outside knowledge changes inside rules."
+      hint: "Reminder: Outside warnings are evidence, not drama."
     },
 
     "3.2": {
-      title: "The warning",
+      title: "Town warning",
       loc: "Living room near the radio",
       time: "Night",
       text: [
-        "Brian sits on an upside-down box and opens the battery pack while he talks. He avoids looking at the staircase.",
-        "He says the clerk asked, \"You going up to the old place with the light on,\" then laughed too fast.",
-        "Brian asked what that meant. The clerk said, \"Nothing. Just do not drink the well water unless you have to,\" and slid the batteries across the counter.",
-        "Scott calls it small-town talk. The radio answers with static and a single thin syllable that is not long enough to understand."
+        "Brian repeats the warning plainly: do not ignore the odd patterns and keep water use controlled tonight.",
+        "Scott stays calm and says they can treat it as practical guidance without panicking.",
+        "Ashley asks Amanda whether this changes the plan or only confirms what they already saw.",
+        "The radio hisses once, then settles to a steady bed of static."
       ],
       choices: [
-        { t: "Treat the warning as actionable and set one rule for the house.", next: "3.3", fx: (s)=>{ s.flags.townWarningTakenSeriously = true; s.trust += 1; s.normalcy += 1; } },
-        { t: "Dismiss it and focus on getting the night back on track.", next: "4.1", fx: (s)=>{ s.flags.townWarningTakenSeriously = false; s.normalcy += 1; } }
+        { t: "Elevate the warning as evidence and adjust procedure.", next: "3.3", fx: (s)=>{ s.flags.townWarningTakenSeriously = true; s.normalcy += 1; s.clues.push({k:"Town warning", v:"Brian relayed a practical warning from the clerk and Amanda treated it as evidence."}); } },
+        { t: "Dismiss it as noise and keep moving.", next: (s)=> ((s.flags.loopCount || 0) > 0 ? "4.1" : "3.3"), fx: (s)=>{ s.flags.townWarningTakenSeriously = false; s.unease += 1; } }
       ],
-      hint: "Rule: Do not dismiss outside warnings."
+      hint: "Reminder: Do not dismiss outside warnings when stakes are rising."
     },
 
     "3.3": {
-      title: "One rule out loud",
-      loc: "Living room and entryway",
+      title: "Resistance returns",
+      loc: "Kitchen hall",
       time: "Night",
       text: [
-        "Amanda states one rule in a normal voice and repeats it once so everyone hears the same words.",
-        "Scott stops smiling for a moment, then agrees and starts moving boxes away from the window without being asked.",
-        "Ashley checks the curtains and keeps her phone in her hand even though there is no signal.",
-        "The radio stays on static. The sound is steady enough to feel intentional."
+        "At the utility closet, the knob turns but the latch catches and holds for a beat.",
+        "Scott stays friendly and says they can solve it without turning it into a fight with the house.",
+        "Ashley keeps the flashlight steady so Amanda can see the latch line clearly.",
+        "The same resistance pattern is back, and everyone recognizes it."
       ],
       choices: [
-        { t: "Write the rule into the logbook and keep everyone in the same room.", next: "3.4", fx: (s)=>{ s.flags.ruleSpoken = true; s.trust += 1; s.normalcy += 1; s.clues.push({k:'House rule', v:'Amanda stated a rule out loud and logged it.'}); } },
-        { t: "Skip the log and start checking the house systems again.", next: "3.4", fx: (s)=>{ s.flags.ruleSpoken = false; s.unease += 1; } }
+        { t: "Change method and keep the group together.", next: "3.4", fx: (s)=>{ s.normalcy += 1; } },
+        { t: "Force the latch and get it over with.", next: (s)=> ((s.flags.loopCount || 0) > 0 ? "4.4" : "3.4"), fx: (s)=>{ s.unease += 1; } }
       ],
-      hint: "Rule: Log the rule and repeat it before you act."
+      hint: "Reminder: If resistance repeats, change method instead of forcing."
     },
 
     "3.4": {
-      title: "The radio clarifies",
-      loc: "Living room near the radio",
+      title: "Log and repeat-test",
+      loc: "Kitchen hall and entry table",
       time: "Night",
       text: [
-        "The radio crackles and then clears long enough for one word to land cleanly, then returns to static.",
-        "Brian freezes and looks at Amanda, waiting for her to repeat the word exactly as heard.",
-        "Scott says it sounds like a name and starts to speculate. Ashley tells him to stop talking over it.",
-        "Amanda can either treat the word as a constraint to follow or treat it as a message to chase."
+        "Amanda logs the latch behavior first, then repeats one controlled test with Brian watching.",
+        "The latch catches in the same way on repeat, which confirms the pattern is not random.",
+        "Scott stays with them and keeps the hallway clear instead of improvising a shortcut.",
+        "Ashley reads the log line back so everyone is aligned before the next move."
       ],
       choices: [
-        { t: "Repeat the word exactly and treat it as a constraint.", next: "3.5", fx: (s)=>{ s.flags.radioConstraintMode = true; s.flags.radioWord = s.flags.radioWord || 'UNKNOWN'; s.clues.push({k:'Radio word', v:'A single clear word landed once. Amanda repeated it without interpretation.'}); s.trust += 1; s.normalcy += 1; } },
-        { t: "Treat it as a message and try to act on what it means.", next: "4.2", fx: (s)=>{ s.flags.radioConstraintMode = false; s.unease += 1; } }
+        { t: "Keep logging and move to the next decision point.", next: "3.5", fx: (s)=>{ s.flags.repeatTestDone = true; s.normalcy += 1; s.clues.push({k:"Latch repeat-test", v:"Amanda logged and repeated the latch test before escalation."}); } },
+        { t: "Skip the log and escalate now.", next: (s)=> ((s.flags.loopCount || 0) > 0 ? "4.5" : "3.5"), fx: (s)=>{ s.flags.repeatTestDone = false; s.unease += 1; } }
       ],
-      hint: "Rule: When the radio gives a clear word, treat it as a constraint."
+      hint: "Reminder: Log and repeat-test before escalation."
     },
 
     "3.5": {
-      title: "Constraint behavior",
-      loc: "Entryway and kitchen hall",
+      title: "Second clear word",
+      loc: "Living room near the radio",
       time: "Night",
       text: [
-        "Amanda repeats the radio word again and treats it as a constraint for the next action.",
-        "She keeps Brian and Ashley in the entryway and asks Scott to stay where she can see him.",
-        "The radio static changes texture when someone steps closer to the front window, then returns to baseline when they step back.",
-        "A latch clicks once in the kitchen hall even though no one touched it."
+        "The radio clears again for a second and gives a second word fragment before dropping back to static.",
+        "Brian repeats what he heard without adding interpretation, and Scott agrees to keep the plan practical.",
+        "Ashley watches Amanda and waits for the call instead of guessing ahead.",
+        "This is the point where message-chasing can break discipline."
       ],
       choices: [
-        { t: "Log what changed and repeat-test the window step with Brian watching.", next: "3.6", fx: (s)=>{ s.flags.repeatTestDone = true; s.trust += 1; s.normalcy += 1; s.clues.push({k:'Repeat-test', v:'Amanda tested the window step and logged the result.'}); } },
-        { t: "Skip the log and go check the kitchen hall latch immediately.", next: "4.5", fx: (s)=>{ s.flags.repeatTestDone = false; s.unease += 1; } }
+        { t: "Treat the radio word as a message.", next: (s)=> ((s.flags.loopCount || 0) > 0 ? "4.2" : "3.6"), fx: (s)=>{ s.unease += 1; } },
+        { t: "Treat the radio word as a constraint and proceed by plan.", next: "3.6", fx: (s)=>{ s.flags.radioConstraintMode = true; s.normalcy += 1; } }
       ],
-      hint: "Rule: Log and repeat-test before you escalate."
+      hint: "Reminder: A clear radio word is a constraint, not a message."
     },
 
     "3.6": {
-      title: "Procedure over impulse",
-      loc: "Entryway and kitchen hall",
+      title: "Final plan check",
+      loc: "Living room",
       time: "Night",
       text: [
-        "Amanda and Brian repeat the window step once, then again, and the radio static changes texture both times in the same way.",
-        "Amanda writes the result down and says it out loud so Ashley and Scott hear the same words.",
-        "The latch in the kitchen hall clicks again, this time closer, as if it is answering the repeated test.",
-        "Amanda moves with the group into the hall and stops before touching anything."
+        "Amanda lays out the practical plan: stay together, do not force doors, log before escalation, and treat radio words as constraints.",
+        "She adds the outside warning to the top of the list and asks everyone to confirm the same sequence.",
+        "Scott agrees without joking and Ashley repeats the order back exactly.",
+        "Brian checks supplies and says they can execute the plan now if everyone holds discipline."
       ],
       choices: [
-        { t: "Approach the latch as a mechanical problem with Brian watching.", next: "3.7", fx: (s)=>{ s.trust += 1; s.normalcy += 1; s.flags.procedureMode = true; } },
-        { t: "Let Scott try the latch first while you stand back.", next: "3.7", fx: (s)=>{ s.unease += 1; s.flags.procedureMode = false; } }
+        { t: "Follow the plan exactly.", next: (s)=> hasAllCoreRules(s) ? "4.6" : (Object.prototype.hasOwnProperty.call(beats, "4.9") ? "4.9" : "1.1"), fx: (s)=>{ s.trust += 1; s.normalcy += 1; s.clues.push({k:"Plan check", v:"Amanda proposed a full rule-aligned plan before the final push."}); } },
+        { t: "Improvise.", next: (s)=> ((s.flags.loopCount || 0) > 0 ? "4.8" : "1.1"), fx: (s)=>{ s.unease += 1; } }
       ],
-      hint: "Rule: Treat resistance as a procedure problem, not a challenge."
+      hint: "Reminder: Good outcomes come from disciplined execution, not improvisation."
     },
 
     "3.7": {
@@ -637,7 +753,7 @@
         "Amanda confirms everyone is present before touching any door."
       ],
       choices: [
-        { t: "Return downstairs together and reassess with the logbook.", next: (s)=> hasAllRequiredRules() ? "4.6" : "3.1", fx: (s)=>{ s.flags.groupMove = true; s.trust += 1; s.normalcy += 1; } },
+        { t: "Return downstairs together and reassess with the logbook.", next: (s)=> hasAllCoreRules(s) ? "4.6" : "4.5", fx: (s)=>{ s.flags.groupMove = true; s.trust += 1; s.normalcy += 1; if (!hasAllCoreRules(s)) { const miss = missingCoreRules(s); s.clues.push({ k: "Missing rules", v: "You are missing: " + miss.join(", ") }); } } },
         { t: "Split up to save time and check separate doors.", next: "4.3", fx: (s)=>{ s.flags.groupMove = false; s.unease += 1; } }
       ],
       hint: "Rule: Do not go alone."
@@ -657,8 +773,8 @@
         "Amanda does not answer. Her hands are still on the chair back and her attention stays on the word \"Cut\" as if it explained nothing."
       ],
       choices: [
-        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R3 = true; resetRunPreserveMemory(); } },
-        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R3 = true; resetRunPreserveMemory(); } }
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ const thisCut = "4.1"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R3", "Do not dismiss outside warnings."); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ const thisCut = "4.1"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R3", "Do not dismiss outside warnings."); } }
       ],
       hint: "Rule learned: Do not dismiss outside warnings."
     },
@@ -677,8 +793,8 @@
         "Ashley says the word sounded clear but the reaction was wrong. No one asks Amanda what she heard."
       ],
       choices: [
-        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R5 = true; resetRunPreserveMemory(); } },
-        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R5 = true; resetRunPreserveMemory(); } }
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ const thisCut = "4.2"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R5", "When the radio gives a clear word, treat it as a constraint."); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ const thisCut = "4.2"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R5", "When the radio gives a clear word, treat it as a constraint."); } }
       ],
       hint: "Rule learned: When the radio gives a clear word, treat it as a constraint."
     },
@@ -697,8 +813,8 @@
         "Amanda looks at the tape marks and the cable and does not understand why nobody is afraid."
       ],
       choices: [
-        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R1 = true; resetRunPreserveMemory(); } },
-        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R1 = true; resetRunPreserveMemory(); } }
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ const thisCut = "4.3"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R1", "Do not go alone."); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ const thisCut = "4.3"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R1", "Do not go alone."); } }
       ],
       hint: "Rule learned: Do not go alone."
     },
@@ -717,8 +833,8 @@
         "Amanda stands still and looks at the tape marks as if the room has admitted it is rehearsed."
       ],
       choices: [
-        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R2 = true; resetRunPreserveMemory(); } },
-        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R2 = true; resetRunPreserveMemory(); } }
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ const thisCut = "4.4"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R2", "If a door resists, stop and change method. Do not force it."); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ const thisCut = "4.4"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R2", "If a door resists, stop and change method. Do not force it."); } }
       ],
       hint: "Rule learned: If a door resists, stop and change method. Do not force it."
     },
@@ -737,8 +853,8 @@
         "Amanda stays in the doorway and looks from the tape marks to the entry table, as if the room is revealing a plan she never agreed to."
       ],
       choices: [
-        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R7 = true; resetRunPreserveMemory(); } },
-        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.learnedRules = s.flags.learnedRules || {}; s.flags.learnedRules.R7 = true; resetRunPreserveMemory(); } }
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ const thisCut = "4.5"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R7", "Log and repeat-test before you escalate."); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ const thisCut = "4.5"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; resetRunPreserveMemory(); learnRule("R7", "Log and repeat-test before you escalate."); } }
       ],
       hint: "Rule learned: Log and repeat-test before you escalate."
     },
@@ -756,7 +872,65 @@
         { t: "Replay from Beat 1.1.", next: "1.1" },
         { t: "Save and stop.", next: null }
       ],
-      hint: "Ending: Good."
+      hint: "Reminder: Ending: Good."
+    },
+
+    "4.7": {
+      title: "Cut",
+      loc: "Backroad, then set",
+      time: "Late afternoon",
+      text: [
+        "Amanda says the line to the room instead of to Ashley. For a breath, nobody answers.",
+        "The engine sound drops out and the road outside the windows stops moving.",
+        "A voice from off to the left says, \"Cut.\"",
+        "The windshield now reflects a light stand and a boom pole above the hood.",
+        "Scott looks past Amanda and asks if that was too direct for this pass.",
+        "Ashley keeps her eyes forward and waits for someone else to speak first.",
+        "Amanda keeps one hand on the door handle and realizes the scene only moves when she stays inside it."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ const thisCut = "4.7"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; if (typeof resetRunPreserveMemory === "function") resetRunPreserveMemory(); learnRule("R0", "Do not break the fourth wall."); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ const thisCut = "4.7"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; if (typeof resetRunPreserveMemory === "function") resetRunPreserveMemory(); learnRule("R0", "Do not break the fourth wall."); } }
+      ],
+      hint: "Rule learned: Do not break the fourth wall."
+    },
+
+    "4.8": {
+      title: "Cut",
+      loc: "Backroad shoulder, then set",
+      time: "Late afternoon",
+      text: [
+        "Amanda refuses the turn and tells Ashley they are leaving before they even reach the drive.",
+        "Scott asks for one more minute and Brian says they can reset if needed.",
+        "A voice from off to the left says, \"Cut.\"",
+        "The road noise thins out until there is only silence.",
+        "A voice from off to the left says, \"Cut.\"",
+        "Dust hangs in the air without moving. Tape marks are visible near the tire tracks.",
+        "Ashley asks if she should keep the mirror in frame or put it away for the next take.",
+        "Amanda stares at the shoulder and understands that refusal without evidence only restarts the loop."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ const thisCut = "4.8"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; if (typeof resetRunPreserveMemory === "function") resetRunPreserveMemory(); learnRule("R6", "Do not go off-script before you have evidence."); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ const thisCut = "4.8"; if ((s.flags.lastCutBeat || "") === thisCut) { s.flags.lastCutBeat = ""; s.flags.pendingHold = thisCut; return; } s.flags.lastCutBeat = thisCut; s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; if (typeof resetRunPreserveMemory === "function") resetRunPreserveMemory(); learnRule("R6", "Do not go off-script before you have evidence."); } }
+      ],
+      hint: "Rule learned: Do not go off-script before you have evidence."
+    },
+
+    "4.9": {
+      title: "Hold",
+      loc: "Set",
+      time: "Night",
+      text: [
+        "The director holds the reset and points to a note on a clipboard.",
+        "A concrete note lands clearly: repeat the last rule exactly, then hit the same marks on reset.",
+        "Scott nods once, Ashley fixes her posture, and Brian waits for the restart cue without comment.",
+        "Amanda feels the last mistake lock into memory as the room prepares to roll back to the top."
+      ],
+      choices: [
+        { t: "Replay from Beat 1.1.", next: "1.1", fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.pendingHold = ""; if (typeof resetRunPreserveMemory === "function") resetRunPreserveMemory(); } },
+        { t: "Save and stop.", next: null, fx: (s)=>{ s.flags.loopCount = (s.flags.loopCount || 0) + 1; s.flags.remembersLoop = true; s.flags.pendingHold = ""; if (typeof resetRunPreserveMemory === "function") resetRunPreserveMemory(); } }
+      ],
+      hint: "Reminder: Hold and reset."
     },
 
     "5.1": {
@@ -777,7 +951,7 @@
         { t: "Follow the radio phrase as a direction and move as a group.", next: "5.2", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'Radio direction', v:'The phrase ended with a word that sounded like a location.'}); } },
         { t: "Refuse to follow it and instead secure doors and windows first.", next: "5.2", fx: (s)=>{ s.normalcy += 1; s.unease += 1; } }
       ],
-      hint: "At some point, a choice becomes a test."
+      hint: "Reminder: At some point, a choice becomes a test."
     },
 
     "5.2": {
@@ -798,7 +972,7 @@
         { t: "Log the exact word and the pen angle, then back out and end here.", next: "5.3", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'Study note', v:'A new line appeared on the notepad and matched a word from the radio.'}); } },
         { t: "Touch the ink with a fingertip to confirm it’s fresh, then end here.", next: "5.3", fx: (s)=>{ s.unease += 2; s.clues.push({k:'Fresh ink', v:'Ink on the study notepad felt fresh to the touch.'}); } }
       ],
-      hint: "A controlled test produced a change."
+      hint: "Reminder: A controlled test produced a change."
     },
 
     "5.3": {
@@ -818,7 +992,7 @@
         { t: "Write down both lines and the radio phrase, then test the next location as a group.", next: "5.4", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'Second line', v:'A second line appeared on the notepad and matched part of the radio phrase.'}); } },
         { t: "Stop testing. Move back to the living room and focus on safety rules only.", next: "5.4", fx: (s)=>{ s.normalcy += 1; s.unease += 1; s.clues.push({k:'Second line', v:'A second line appeared on the notepad and matched part of the radio phrase.'}); } }
       ],
-      hint: "A repeatable change creates obligations."
+      hint: "Reminder: A repeatable change creates obligations."
     },
 
     "5.4": {
@@ -839,7 +1013,7 @@
         { t: "Use the screwdriver from the LIGHTS box to tighten the latch plate screws.", next: "5.5", fx: (s)=>{ s.normalcy += 1; s.inv.add('Screwdriver'); s.clues.push({k:'Latch catch', v:'The latch failed once even with the knob turning. A stiff card freed it.'}); } },
         { t: "Do not “fix” it. Treat it as a hazard and keep it propped open.", next: "5.5", fx: (s)=>{ s.unease += 1; s.inv.add('Replacement knob set'); s.clues.push({k:'Latch catch', v:'The latch failed once even with the knob turning. A stiff card freed it.'}); } }
       ],
-      hint: "Fixing a hazard can remove warning signs."
+      hint: "Reminder: Fixing a hazard can remove warning signs."
     },
 
     "5.5": {
@@ -859,7 +1033,7 @@
         { t: "Stage a controlled descent: flashlight, screwdriver, and the door rule.", next: "5.6", fx: (s)=>{ s.trust += 1; s.unease += 1; s.clues.push({k:'Basement word', v:'The radio phrase included the word basement clearly.'}); } },
         { t: "Refuse to go down tonight. Barricade and wait for morning.", next: "5.6", fx: (s)=>{ s.normalcy += 1; s.unease += 2; s.clues.push({k:'Basement word', v:'The radio phrase included the word basement clearly.'}); } }
       ],
-      hint: "Avoidance is also a plan."
+      hint: "Reminder: Avoidance is also a plan."
     },
 
     "5.6": {
@@ -876,10 +1050,10 @@
         "[AMANDA: You do not open the door yet. You end the beat with preparation, not action.]"
       ],
       choices: [
-        { t: "Continue.", next: "6.1", fx: (s)=>{ s.clues.push({k:'Basement threshold', v:'Cool air at the seam and old drag scuffs near the threshold.'}); } },
-        { t: "Replay from 5.3.", next: "5.3", fx: (s)=>{} }
+        { t: "Continue", next: "6.1", fx: (s)=>{ s.clues.push({k:'Basement threshold', v:'Cool air at the seam and old drag scuffs near the threshold.'}); } },
+        { t: "Hold position and proceed when ready.", next: "6.1", fx: (s)=>{} }
       ],
-      hint: "Preparation changes the outcome more than courage."
+      hint: "Reminder: Preparation changes the outcome more than courage."
     },
 
     "6.1": {
@@ -899,7 +1073,7 @@
         { t: "Continue down. Keep the door propped and the group in one line.", next: "6.2", fx: (s)=>{ s.unease += 1; s.trust += 1; } },
         { t: "Stop at the landing and listen for a repeat before taking another step.", next: "6.2", fx: (s)=>{ s.unease += 1; s.normalcy += 1; } }
       ],
-      hint: "A descent is a procedure, not a dare."
+      hint: "Reminder: A descent is a procedure, not a dare."
     },
 
     "6.2": {
@@ -919,7 +1093,7 @@
         { t: "Check the pump power label and trace the wire run with the flashlight.", next: "6.3", fx: (s)=>{ s.clues.push({k:'Pump label', v:'A handwritten PUMP label is taped to a beam near the utility corner.'}); s.unease += 1; } },
         { t: "Test the pump switch once, then stop and listen for changes upstairs.", next: "6.3", fx: (s)=>{ s.normalcy += 1; s.unease += 1; s.clues.push({k:'Pump test', v:'A single controlled pump test was attempted.'}); } }
       ],
-      hint: "If someone staged the house, they staged this too."
+      hint: "Reminder: If someone staged the house, they staged this too."
     },
 
     "6.3": {
@@ -939,7 +1113,7 @@
         { t: "Log the missing key ring and take the wet hose as evidence.", next: "6.4", fx: (s)=>{ s.inv.add('Hose (wet fitting)'); s.clues.push({k:'Missing key ring', v:'An old key ring hangs in the basement storage nook with one key missing.'}); s.unease += 1; } },
         { t: "Leave everything in place and back out slowly, keeping the door from closing fully.", next: "6.4", fx: (s)=>{ s.trust += 1; s.clues.push({k:'Clean rectangle', v:'A clean rectangle in dust suggests a heavy object was removed recently.'}); s.unease += 1; } }
       ],
-      hint: "Evidence can be moved or recorded."
+      hint: "Reminder: Evidence can be moved or recorded."
     },
 
     "6.4": {
@@ -959,7 +1133,7 @@
         { t: "End here. Save and stop.", next: null, fx: (s)=>{ s.clues.push({k:'One drip', v:'The kitchen faucet produced exactly one drip after the basement check.'}); s.clues.push({k:'Radio word', v:'The radio delivered one clear word: stop.'}); } },
         { t: "Continue to Beat 7.1.", next: null, fx: (s)=>{ s.clues.push({k:'One drip', v:'The kitchen faucet produced exactly one drip after the basement check.'}); s.clues.push({k:'Radio word', v:'The radio delivered one clear word: stop.'}); } }
       ],
-      hint: "The house gives partial compliance."
+      hint: "Reminder: The house gives partial compliance."
     }
   };
 
@@ -970,18 +1144,89 @@
       if (!beat || typeof beat !== 'object') {
         throw new Error(`Beat "${key}" is not a valid object.`);
       }
-      if (!beat.choices || !Array.isArray(beat.choices)) {
-        throw new Error(`Beat "${key}" has no choices array.`);
+      const hasSteps = !!(beat.steps && typeof beat.steps === "object");
+      const stepKeys = hasSteps ? Object.keys(beat.steps) : [];
+
+      if (hasSteps && stepKeys.length === 0) {
+        throw new Error(`Beat "${key}" has an empty steps object.`);
       }
-      if (beat.choices.length < 2 && !beat.choices.some(c => c.next === null)) {
-        throw new Error(`Beat "${key}" has ${beat.choices.length} choices and no end choice (next: null).`);
+      if (hasSteps && beat.startStep !== undefined && !Object.prototype.hasOwnProperty.call(beat.steps, beat.startStep)) {
+        throw new Error(`Beat "${key}" startStep "${beat.startStep}" does not exist in steps.`);
       }
-      for (const choice of beat.choices) {
-        if (choice.next !== null && !(choice.next in beats)) {
-          throw new Error(`Beat "${key}" choice next "${choice.next}" does not exist.`);
+
+      const validateChoiceArray = (choices, label, stepMap) => {
+        if (!Array.isArray(choices)) {
+          throw new Error(`${label} has no choices array.`);
         }
+
+        const isEndNode = choices.length > 0 && choices.every((c) => {
+          const n = c.next;
+          const sn = c.subNext;
+          return (n === null || n === undefined) && (sn === null || sn === undefined);
+        });
+
+        if (choices.length < 2 && !isEndNode) {
+          throw new Error(`${label} has ${choices.length} choices and is not an end node.`);
+        }
+
+        for (const choice of choices) {
+          if (choice.next !== undefined && choice.next !== null) {
+            if (typeof choice.next === "string") {
+              if (!(choice.next in beats)) {
+                throw new Error(`${label} choice next "${choice.next}" does not exist.`);
+              }
+            } else if (typeof choice.next !== "function") {
+              throw new Error(`${label} choice next must be a string, function, or null.`);
+            }
+          }
+
+          if (Object.prototype.hasOwnProperty.call(choice, "subNext")) {
+            const sn = choice.subNext;
+            if (sn !== null && typeof sn !== "string") {
+              throw new Error(`${label} choice subNext must be a string or null.`);
+            }
+            if (!stepMap) {
+              throw new Error(`${label} uses subNext without beat steps.`);
+            }
+            if (sn !== null && !Object.prototype.hasOwnProperty.call(stepMap, sn)) {
+              throw new Error(`${label} choice subNext "${sn}" does not exist in this beat steps.`);
+            }
+          }
+        }
+      };
+
+      if (hasSteps) {
+        for (const stepKey of stepKeys) {
+          const step = beat.steps[stepKey] || {};
+          const effectiveChoices = Array.isArray(step.choices) ? step.choices : beat.choices;
+          validateChoiceArray(effectiveChoices, `Beat "${key}" step "${stepKey}"`, beat.steps);
+        }
+      } else {
+        validateChoiceArray(beat.choices, `Beat "${key}"`, null);
       }
     }
+  }
+
+  function getActiveNode(beat){
+    if (!beat || !beat.steps || typeof beat.steps !== "object") {
+      return { stepId: null, node: beat };
+    }
+
+    const stepKeys = Object.keys(beat.steps);
+    if (!stepKeys.length) {
+      return { stepId: null, node: beat };
+    }
+
+    let activeStep = state.sub ?? beat.startStep ?? stepKeys[0];
+    if (!Object.prototype.hasOwnProperty.call(beat.steps, activeStep)) {
+      activeStep = beat.startStep ?? stepKeys[0];
+    }
+    if (!Object.prototype.hasOwnProperty.call(beat.steps, activeStep)) {
+      return { stepId: null, node: beat };
+    }
+
+    state.sub = activeStep;
+    return { stepId: activeStep, node: beat.steps[activeStep] || beat };
   }
 
   function validateRuleWrites(){
@@ -1014,7 +1259,43 @@
   function rulesStatus(){
     const lr = state.flags.learnedRules || {};
     const mark = (id) => (lr[id] ? "✓" : "·");
-    return `Rules: R1${mark("R1")} R2${mark("R2")} R3${mark("R3")} R5${mark("R5")} R7${mark("R7")}`;
+    return `Rules: R0${mark("R0")} R1${mark("R1")} R2${mark("R2")} R3${mark("R3")} R5${mark("R5")} R6${mark("R6")} R7${mark("R7")}`;
+  }
+
+  function canUseOffScriptAction(){
+    return !!(state.flags.learnedRules && state.flags.learnedRules.R6 === true) || (state.flags.loopCount || 0) >= 2;
+  }
+
+  function holdInstruction(cutKey){
+    if (cutKey === "4.3") return "Instruction: nobody goes alone.";
+    if (cutKey === "4.4") return "Instruction: if a door resists, change method. Do not force it.";
+    if (cutKey === "4.1") return "Instruction: outside warnings count as evidence.";
+    if (cutKey === "4.2") return "Instruction: a clear radio word is a constraint, not a message.";
+    if (cutKey === "4.5") return "Instruction: log and repeat-test before escalation.";
+    if (cutKey === "4.7") return "Instruction: do not talk about cameras or a set.";
+    if (cutKey === "4.8") return "Instruction: do not deviate hard until you have evidence.";
+    return "Instruction: reset and proceed carefully.";
+  }
+
+  function learnRule(ruleId, text){
+    state.flags.learnedRules = state.flags.learnedRules || {};
+    state.flags.learnedRules[ruleId] = true;
+    state.clues.push({k: "Rule " + ruleId, v: text});
+  }
+
+  function learnedRuleEntries(){
+    const lr = state.flags.learnedRules || {};
+    const order = ["R0","R1","R2","R3","R5","R6","R7"];
+    const text = {
+      R0: "Do not break the fourth wall.",
+      R1: "Do not go alone.",
+      R2: "If a door resists, stop and change method. Do not force it.",
+      R3: "Do not dismiss outside warnings.",
+      R5: "When the radio gives a clear word, treat it as a constraint.",
+      R6: "Do not go off-script before you have evidence.",
+      R7: "Log and repeat-test before you escalate."
+    };
+    return order.filter(k => lr[k]).map(k => ({ k: "Rule " + k, v: text[k] }));
   }
 
   function hasLearned(ruleId){
@@ -1023,6 +1304,18 @@
 
   function hasAllRequiredRules(){
     return hasLearned("R1") && hasLearned("R2") && hasLearned("R3") && hasLearned("R5") && hasLearned("R7");
+  }
+
+  function hasAllCoreRules(s){
+    const r = s.flags.learnedRules || {};
+    const needed = ["R0","R1","R2","R3","R5","R6","R7"];
+    return needed.every(k => r[k] === true);
+  }
+
+  function missingCoreRules(s){
+    const r = s.flags.learnedRules || {};
+    const needed = ["R0","R1","R2","R3","R5","R6","R7"];
+    return needed.filter(k => r[k] !== true);
   }
 
   function resetRunPreserveMemory(){
@@ -1058,6 +1351,10 @@
       repeatTestDone: false,
       procedureMode: false,
       usedMethodNotForce: false,
+      jokeUsed: false,
+      microEvidence: false,
+      lastCutBeat: "",
+      pendingHold: "",
       loopCount: mem.loopCount,
       remembersLoop: mem.remembersLoop,
       learnedRules: mem.learnedRules
@@ -1099,11 +1396,12 @@
   function renderJournal(){
     const j = $("journal");
     j.innerHTML = "";
-    if (!state.clues.length){
+    const entries = learnedRuleEntries().concat(state.clues);
+    if (!entries.length){
       j.innerHTML = '<div class="item">No clues logged yet.</div>';
       return;
     }
-    const last = state.clues.slice(-8);
+    const last = entries.slice(-8);
     last.forEach((c) => {
       const div = document.createElement("div");
       div.className = "item";
@@ -1112,10 +1410,19 @@
     });
   }
 
+  function getVisibleChoices(choices){
+    return choices.filter((c) => {
+      if (c.id === "delay10" && state.beat === "1.1" && !canUseOffScriptAction()) return false;
+      if (typeof c.showIf !== "function") return true;
+      return !!c.showIf(state);
+    });
+  }
+
   function renderChoices(choices){
     const row = $("choiceRow");
     row.innerHTML = "";
-    choices.forEach((c) => {
+    const visibleChoices = getVisibleChoices(choices);
+    visibleChoices.forEach((c) => {
       const btn = document.createElement("button");
       btn.className = "btn primary choice";
       btn.textContent = c.t;
@@ -1124,17 +1431,33 @@
     });
   }
 
-  function render(){
-    const b = beats[state.beat];
+  function render(guarded){
+    let b = beats[state.beat];
+    if (!b) {
+      if (guarded) return;
+      state.beat = "1.1";
+      state.sub = null;
+      render(true);
+      return;
+    }
+
+    const active = getActiveNode(b);
+    const node = active.node || b;
+    if (!active.stepId) state.sub = null;
+
     $("beatPill").textContent = "Beat " + state.beat;
     $("locPill").textContent = b.loc;
+    const rules = ["R0","R1","R2","R3","R5","R6","R7"];
+    const learnedRules = (state.flags && state.flags.learnedRules) ? state.flags.learnedRules : {};
+    const learnedCount = rules.filter((ruleId) => learnedRules[ruleId] === true).length;
+    $("rulePill").textContent = "Rules " + learnedCount + "/7";
     state.time = b.time;
     $("timeVal").textContent = state.time;
     $("trustVal").textContent = String(state.trust);
     $("normVal").textContent = String(state.normalcy);
     $("uneaseVal").textContent = String(state.unease);
     $("sceneTitle").textContent = b.title;
-    const hint = b.hint || "";
+    const hint = node.hint || b.hint || "";
     const rs = rulesStatus();
     $("hintText").textContent = hint ? (hint + " " + rs) : rs;
 
@@ -1144,6 +1467,7 @@
       } else {
         const lr = state.flags.learnedRules || {};
         const learned = Object.keys(lr).filter(k => lr[k]).sort().join(", ") || "(none)";
+        const ruleMapText = "R0@" + RULE_MAP.R0 + " R1@" + RULE_MAP.R1 + " R2@" + RULE_MAP.R2 + " R3@" + RULE_MAP.R3 + " R5@" + RULE_MAP.R5 + " R6@" + RULE_MAP.R6 + " R7@" + RULE_MAP.R7;
         $("devOut").textContent =
           "beat: " + state.beat + "\n" +
           "trust: " + state.trust + "\n" +
@@ -1151,31 +1475,31 @@
           "unease: " + state.unease + "\n" +
           "loopCount: " + (state.flags.loopCount || 0) + "\n" +
           "remembersLoop: " + (!!state.flags.remembersLoop) + "\n" +
-          "learnedRules: " + learned;
+          "learnedRules: " + learned + "\n" +
+          "ruleMap: " + ruleMapText;
       }
     }
 
     const blocks = [];
     const mem = memoryPrefix();
     if (mem) blocks.push("<p><i>" + escapeHtml(mem) + "</i></p>");
-    b.text.forEach((p) => blocks.push("<p>" + escapeHtml(p) + "</p>"));
-    if (state.showNotes && b.notes && b.notes.length){
-      const n = b.notes.map(escapeHtml).join("<br>");
+    const activeText = Array.isArray(node.text) ? node.text : (Array.isArray(b.text) ? b.text : []);
+    const activeNotes = Array.isArray(node.notes) ? node.notes : (Array.isArray(b.notes) ? b.notes : []);
+    activeText.forEach((p, idx) => {
+      blocks.push("<p>" + escapeHtml(p) + "</p>");
+      if (state.beat === "4.9" && idx === 0) {
+        blocks.push("<p><i>" + escapeHtml(holdInstruction(state.flags.pendingHold || "")) + "</i></p>");
+      }
+    });
+    if (state.showNotes && activeNotes.length){
+      const n = activeNotes.map(escapeHtml).join("<br>");
       blocks.push('<div class="thoughts">' + n + "</div>");
     }
     const el = $("sceneText");
     if (!state.typewriter) el.innerHTML = blocks.join("");
     else typewrite(el, blocks.join(""));
 
-    let ch = b.choices || [];
-    if (state.beat === "1.1" && state.flags.remembersLoop && (state.flags.loopCount || 0) > 0){
-      ch = ch.slice();
-      ch.push({
-        t: "Record the porch light and curtains in the logbook.",
-        next: "1.2",
-        fx: (s)=>{ s.normalcy += 1; s.clues.push({k:"Continuity", v:"Porch light on in daylight. Curtains drawn with gaps."}); }
-      });
-    }
+    let ch = Array.isArray(node.choices) ? node.choices : (b.choices || []);
 
     renderChoices(ch);
     renderInv();
@@ -1184,17 +1508,31 @@
 
   function advance(choice){
     if (typeof choice.fx === "function") choice.fx(state);
+
+    if (Object.prototype.hasOwnProperty.call(choice, "subNext")) {
+      state.sub = (choice.subNext === null) ? null : choice.subNext;
+      render();
+      return;
+    }
+
     let nxt = choice.next;
     if (typeof nxt === "function") nxt = nxt(state);
     if (!nxt) { render(); return; }
+    const cutBeats = new Set(["4.1", "4.2", "4.3", "4.4", "4.5", "4.7", "4.8"]);
+    if (nxt === "1.1" && (state.flags.pendingHold || "") !== "" && cutBeats.has(state.beat)) {
+      nxt = "4.9";
+    }
     state.beat = nxt;
+    state.sub = null;
     render();
   }
 
   const SAVE_KEY = "fixing_house_beat1_save_v1";
+  const SAVE_VERSION = 2;
   function save(){
     const payload = {
-      beat: state.beat, showNotes: state.showNotes, typewriter: state.typewriter,
+      version: SAVE_VERSION,
+      beat: state.beat, sub: state.sub, showNotes: state.showNotes, typewriter: state.typewriter,
       trust: state.trust, normalcy: state.normalcy, unease: state.unease, time: state.time,
       inv: Array.from(state.inv.values()), clues: state.clues, flags: state.flags
     };
@@ -1203,18 +1541,53 @@
   function load(){
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
-    const p = JSON.parse(raw);
-    state.beat = p.beat || "1.1";
-    state.showNotes = !!p.showNotes;
-    state.typewriter = p.typewriter !== false;
-    state.trust = Number(p.trust || 0);
-    state.normalcy = Number(p.normalcy || 0);
-    state.unease = Number(p.unease || 0);
-    state.time = p.time || "Late afternoon";
-    state.inv = new Set(p.inv || []);
-    state.clues = Array.isArray(p.clues) ? p.clues : [];
-    state.flags = p.flags || state.flags;
-    return true;
+    try {
+      const p = JSON.parse(raw);
+      const version = Number(p.version || 0);
+
+      state.beat = p.beat || "1.1";
+      if (!Object.prototype.hasOwnProperty.call(beats, state.beat)) {
+        state.beat = "1.1";
+      }
+
+      state.sub = (typeof p.sub === "string") ? p.sub : null;
+      const beatObj = beats[state.beat];
+      if (!beatObj || !beatObj.steps || typeof beatObj.steps !== "object" || !Object.prototype.hasOwnProperty.call(beatObj.steps, state.sub)) {
+        state.sub = null;
+      }
+
+      state.showNotes = !!p.showNotes;
+      state.typewriter = p.typewriter !== false;
+      state.trust = Number(p.trust || 0);
+      state.normalcy = Number(p.normalcy || 0);
+      state.unease = Number(p.unease || 0);
+      state.time = p.time || "Late afternoon";
+
+      state.inv = new Set(Array.isArray(p.inv) ? p.inv : []);
+      state.inv.add("Logbook");
+      state.clues = Array.isArray(p.clues) ? p.clues : [];
+
+      state.flags = (p.flags && typeof p.flags === "object") ? p.flags : {};
+      if (typeof state.flags.loopCount !== "number") state.flags.loopCount = 0;
+      if (typeof state.flags.remembersLoop !== "boolean") state.flags.remembersLoop = false;
+      if (!state.flags.learnedRules || typeof state.flags.learnedRules !== "object") state.flags.learnedRules = {};
+      if (typeof state.flags.lastCutBeat !== "string") state.flags.lastCutBeat = "";
+      if (typeof state.flags.pendingHold !== "string") state.flags.pendingHold = "";
+      if (typeof state.flags.jokeUsed !== "boolean") state.flags.jokeUsed = false;
+      if (typeof state.flags.microEvidence !== "boolean") state.flags.microEvidence = false;
+
+      if (version < SAVE_VERSION) {
+        if (!Object.prototype.hasOwnProperty.call(beats, state.beat)) state.beat = "1.1";
+        const b = beats[state.beat];
+        if (!b || !b.steps || typeof b.steps !== "object" || !Object.prototype.hasOwnProperty.call(b.steps, state.sub)) {
+          state.sub = null;
+        }
+      }
+
+      return true;
+    } catch (_e) {
+      return false;
+    }
   }
   function resetSave(){ localStorage.removeItem(SAVE_KEY); }
 
@@ -1224,6 +1597,101 @@
     h.textContent = msg;
     setTimeout(()=>{ h.textContent = old; }, 900);
   }
+
+  function startNewRun(){
+    resetSave();
+    load();
+    state.beat = "1.1";
+    state.sub = null;
+    state.trust = 0;
+    state.normalcy = 0;
+    state.unease = 0;
+    state.inv = new Set();
+    state.inv.add("Logbook");
+    state.clues = [];
+    state.flags.gotPliers = true;
+    state.flags.jokeUsed = false;
+    state.flags.lastCutBeat = "";
+    state.flags.pendingHold = "";
+    render();
+  }
+
+  window.runSmoke = function(steps){
+    const defaultSteps = [
+      { beat: "3.1", choice: 0 },
+      { beat: "3.2", choice: 0 },
+      { beat: "3.3", choice: 0 },
+      { beat: "3.4", choice: 0 },
+      { beat: "3.5", choice: 1 },
+      { beat: "3.6", choice: 0 }
+    ];
+    const route = (Array.isArray(steps) && steps.length) ? steps : defaultSteps;
+
+    startNewRun();
+    console.group("Smoke run");
+    try {
+      for (let i = 0; i < route.length; i++) {
+        const step = route[i] || {};
+        if (typeof step.beat === "string" && step.beat && state.beat !== step.beat) {
+          if (!Object.prototype.hasOwnProperty.call(beats, step.beat)) {
+            console.error("Missing beat:", step.beat);
+            break;
+          }
+          state.beat = step.beat;
+          state.sub = null;
+          render();
+        }
+
+        const fromBeat = state.beat;
+        const beatObj = beats[fromBeat];
+        if (!beatObj) {
+          console.error("Missing beat at runtime:", fromBeat);
+          break;
+        }
+
+        const active = getActiveNode(beatObj);
+        const node = active.node || beatObj;
+        const rawChoices = Array.isArray(node.choices) ? node.choices : (beatObj.choices || []);
+        const visibleChoices = getVisibleChoices(rawChoices);
+        const pick = (typeof step.choice === "number") ? step.choice : 0;
+        const chosen = visibleChoices[pick];
+        if (!chosen) {
+          console.error("Choice index out of range at", fromBeat, "index", pick);
+          break;
+        }
+
+        advance(chosen);
+        const toBeat = state.beat;
+        const isCut = /^4\.(1|2|3|4|5|7|8|9)$/.test(String(toBeat));
+        console.log(fromBeat + " -> " + toBeat + " | choice " + pick + (isCut ? " | CUT/HOLD" : ""));
+
+        if (chosen.next === null && !Object.prototype.hasOwnProperty.call(chosen, "subNext")) {
+          console.log("Smoke run stopped at null next.");
+          break;
+        }
+        if (!Object.prototype.hasOwnProperty.call(beats, state.beat)) {
+          console.error("Transitioned to missing beat:", state.beat);
+          break;
+        }
+        if (state.beat === "4.6") {
+          console.log("Reached 4.6.");
+          break;
+        }
+      }
+
+      if (state.beat !== "4.6") {
+        const miss = missingCoreRules(state);
+        if (miss.length) {
+          state.clues.push({ k: "Missing rules", v: "You are missing: " + miss.join(", ") });
+          console.warn("4.6 gate blocked. Missing rules:", miss.join(", "));
+        }
+      }
+    } finally {
+      console.groupEnd();
+      render();
+    }
+    return state.beat;
+  };
 
   $("btnToggleNotes").onclick = () => {
     state.showNotes = !state.showNotes;
@@ -1243,7 +1711,7 @@
   $("btnSave").onclick = () => { save(); flash("Saved."); };
   $("btnLoad").onclick = () => { flash(load() ? "Loaded." : "No save found."); render(); };
   $("btnReset").onclick = () => { resetSave(); flash("Save reset."); };
-  $("btnNew").onclick = () => { resetSave(); load(); state.beat="1.1"; state.trust=0; state.normalcy=0; state.unease=0; state.inv=new Set(); state.inv.add("Logbook"); state.clues=[]; state.flags.gotPliers=true; render(); };
+  $("btnNew").onclick = () => { startNewRun(); };
 
   $("btnBeatReplay").onclick = () => { render(); flash("Replayed."); };
   $("btnBeatSaveStop").onclick = () => { save(); flash("Saved. Close the tab to stop."); };

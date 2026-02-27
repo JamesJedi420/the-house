@@ -2,6 +2,29 @@
 
 A browser based interactive fiction game with beat driven progression, choices, inventory, and clue logging. Everything runs from a single HTML file.
 
+## Release v1
+
+### What's included
+- Beat-driven interactive fiction prototype
+- Intra-beat steps
+- Loop memory with CUT fail states and rule learning (R0,R1,R2,R3,R5,R6,R7)
+- Hold beat behavior for repeated identical CUT outcomes
+- Save/Load with versioning
+- Rule progress indicator and clue rulebook entries
+
+### How to run locally
+1. Open `fixing_house_beat1_game.html` directly in a browser, or
+2. From this folder run a local server, for example:
+  ```bash
+  npx http-server . -p 5173
+  ```
+3. Open http://localhost:5173/fixing_house_beat1_game.html
+
+### How to report a bug
+- Include a short reproduction path (choices/beats)
+- Paste the full console error from DevTools
+- Include the current beat key shown in the UI (for example, `3.6`)
+
 ## Run
 
 Option 1: Open the file directly
@@ -139,3 +162,17 @@ Prefer a local server while editing for faster refresh and cleaner debugging.
 | R7 | 4.5 | Skip log + repeat-test | CUT -> 1.1 | Rule learned: Log and repeat-test before you escalate. |
 | R2 | 4.4 | Force a resisting door | CUT -> 1.1 | Rule learned: If a door resists, stop and change method. Do not force it. |
 | R1 | 4.3 | Go alone / split up | CUT -> 1.1 | Rule learned: Do not go alone. |
+| R0 | 4.7 | Break the fourth wall / claim it is a set | CUT -> 1.1 | Rule learned: Do not break the fourth wall. |
+| R6 | 4.8 | Deviate too far off-script before evidence | CUT -> 1.1 | Rule learned: Do not go off-script before you have evidence. |
+
+## Act Map (v1)
+
+- Act I (beats 1.1-1.25, then 1.3-1.8) sets baseline tone, house continuity cues, and early procedural habits.
+- Act I includes a low-stakes sandbox branch (1.25) so players can practice logging vs. escalation before major penalties.
+- Act II (beats 2.1-3.9) expands investigation scope and stresses rule discipline under rising pressure.
+- Act II choices increasingly reward controlled method, group movement, and repeatable checks over impulse.
+- CUT beats 4.1-4.5 and 4.7-4.8 are failure loops that reset to 1.1 and explicitly teach rules.
+- CUT loops are learning beats: each one records a specific rule card and advances long-run player knowledge.
+- Act III (beats 5.1-6.4) is procedural escalation where earlier learned rules are expected to be applied consistently.
+- Ending 4.6 is the only good ending.
+- Good-ending access is rule-gated and depends on learned rule coverage across R0, R1, R2, R3, R5, R6, and R7 as applicable.
